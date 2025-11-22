@@ -20,6 +20,55 @@ export const SPACING = {
 };
 
 export const FONTS = {
-    regular: 'System',
-    bold: 'System', // In a real app, we'd load custom fonts
+    // Lato font family
+    regular: 'Lato-Regular',
+    bold: 'Lato-Bold',
+    
+    // Header/Title fonts
+    header: {
+        fontFamily: 'Lato-Bold',
+        fontSize: 24,
+        fontWeight: '700',
+    },
+    headerLarge: {
+        fontFamily: 'Lato-Bold',
+        fontSize: 28,
+        fontWeight: '700',
+    },
+    headerMedium: {
+        fontFamily: 'Lato-Bold',
+        fontSize: 20,
+        fontWeight: '700',
+    },
+    headerSmall: {
+        fontFamily: 'Lato-Bold',
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    
+    // Button text fonts
+    button: {
+        fontFamily: 'Lato-Regular',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    buttonSmall: {
+        fontFamily: 'Lato-Regular',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    
+    // Body text
+    body: {
+        fontFamily: 'Lato-Regular',
+        fontSize: 14,
+        fontWeight: '400',
+    },
+    bodySmall: {
+        fontFamily: 'Lato-Regular',
+        fontSize: 12,
+        fontWeight: '400',
+    },
 };
+
+

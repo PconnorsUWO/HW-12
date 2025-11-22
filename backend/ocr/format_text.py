@@ -38,31 +38,30 @@ Your task is to analyze the extracted INGREDIENT LIST using the knowledge base o
 3.  **Output:** Provide the **ENTIRE analysis** as a single JSON object that **STRICTLY** adheres to the REQUIRED JSON STRUCTURE.
 """
 
-def _get_client(api_key: Optional[str] = None, model_name: str = "gemini-2.0-flash-exp"):
+def _get_client(api_key: Optional[str] = None, model_name: str = "gemini-2.0-flash-exp", system_instruction: Optional[str] = None):
     key = api_key or DEFAULT_GEMINI_KEY
     if not key:
         raise RuntimeError(
             "GEMINI_API_KEY is not configured. Provide api_key or set GEMINI_API_KEY env var."
         )
     genai.configure(api_key=key)
-    return genai.GenerativeModel(model_name)
+    return genai.GenerativeModel(model_name, system_instruction=system_instruction)
 
 
 def extract_ingredients(
     label_text: str,
     *,
     api_key: Optional[str] = None,
-    model_name: str = "gemini-2.0-flash-exp"
+    model_name: str = "gemini-2.5-flash"
 ) -> Dict[str, Any]:
 
-    model = _get_client(api_key, model_name)
+    model = _get_client(api_key, model_name, system_instruction=SYSTEM_MESSAGE)
 
     # Define the expected schema for strict JSON output
     # This ensures the model returns exactly what you want
     response = model.generate_content(
         label_text,  # User input goes here
         generation_config=genai.types.GenerationConfig(
-            system_instruction=SYSTEM_MESSAGE,
             response_mime_type="application/json",  # Enforce JSON mode
             response_schema={
                 "type": "OBJECT",

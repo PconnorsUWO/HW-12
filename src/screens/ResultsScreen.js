@@ -1,11 +1,102 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, ActivityIndicator, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, Animated, Easing, Modal, ScrollView, TouchableWithoutFeedback, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, AlertTriangle, XCircle, CheckCircle, BookOpen } from 'lucide-react-native';
+import { ArrowLeft, AlertTriangle, XCircle, BookOpen, Activity, ChevronRight, List, ShieldAlert, Link as LinkIcon, FileText } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { COLORS, SPACING } from '../constants/theme';
 import { uploadImage } from '../services/api';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// --- Info Card Component ---
+const InfoCard = ({ title, icon: Icon, color, onPress, delay = 0 }) => {
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(20)).current;
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 500,
+                delay,
+                useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 500,
+                delay,
+                useNativeDriver: true,
+                easing: Easing.out(Easing.ease),
+            }),
+        ]).start();
+    }, []);
+
+    const handlePress = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+    };
+
+    return (
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+            <TouchableOpacity style={styles.infoCard} onPress={handlePress} activeOpacity={0.7}>
+                <View style={[styles.iconContainer, { backgroundColor: color }]}>
+                    <Icon size={24} color="#000" />
+                </View>
+                <Text style={styles.cardMainTitle}>{title}</Text>
+                <ChevronRight size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+        </Animated.View>
+    );
+};
+
+// --- Detail Modal Component ---
+const DetailModal = ({ visible, onClose, title, color, children, icon: Icon }) => {
+    const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+
+    useEffect(() => {
+        if (visible) {
+            Animated.spring(slideAnim, {
+                toValue: 0,
+                friction: 8,
+                tension: 40,
+                useNativeDriver: true,
+            }).start();
+        } else {
+            Animated.timing(slideAnim, {
+                toValue: SCREEN_HEIGHT,
+                duration: 200,
+                useNativeDriver: true,
+            }).start();
+        }
+    }, [visible]);
+
+    if (!visible) return null;
+
+    return (
+        <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
+            <View style={styles.modalOverlay}>
+                <TouchableWithoutFeedback onPress={onClose}>
+                    <View style={styles.modalBackdrop} />
+                </TouchableWithoutFeedback>
+                <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]}>
+                    <View style={[styles.modalHeader, { backgroundColor: color }]}>
+                        <View style={styles.modalHeaderTop}>
+                            {Icon && <Icon size={24} color="#000" />}
+                            <Text style={styles.modalTitle}>{title}</Text>
+                            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                                <XCircle size={24} color="#000" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                    <ScrollView contentContainerStyle={styles.modalBody}>
+                        {children}
+                        <View style={{ height: 50 }} />
+                    </ScrollView>
+                </Animated.View>
+            </View>
+        </Modal>
+    );
+};
 
 export default function ResultsScreen({ route, navigation }) {
     const { imageUri } = route.params;
@@ -14,61 +105,39 @@ export default function ResultsScreen({ route, navigation }) {
     const [error, setError] = useState(null);
     const insets = useSafeAreaInsets();
 
+    // Animation for loading bar
+    const progress = useRef(new Animated.Value(0)).current;
+
+    // Modal State
+    const [activeModal, setActiveModal] = useState(null);
+
     useEffect(() => {
+        // Start Loading Animation
+        Animated.timing(progress, {
+            toValue: 0.7,
+            duration: 2000,
+            useNativeDriver: false,
+            easing: Easing.out(Easing.ease),
+        }).start();
+
         const fetchData = async () => {
             try {
-                // Use the real API
                 const result = await uploadImage(imageUri);
-
-                // Backend returns: { ocr_raw_text: "...", analysis: {...} }
-                // Extract the analysis object
                 const analysisData = result.analysis || result;
 
-                // Ensure scientificAnalysis structure exists for the UI if backend doesn't provide it exactly as expected
-                // The new prompt returns 'positiveBenefitsSummary' and 'worstSideEffectsSummary'
-                // We map these to the UI's expected 'scientificAnalysis' structure
-
-                const formattedData = {
-                    ...analysisData,
-                    scientificAnalysis: {
-                        summary: analysisData.appAssessment === "EXCELLENT" ? "This product appears to be well-formulated." : "This product has some potential concerns.",
-                        drawbacks: (analysisData.worstSideEffectsSummary || []).map(effect => ({
-                            title: "Potential Risk",
-                            description: effect,
-                            confidence: "High",
-                            severity: "Medium"
-                        })),
-                        benefits: (analysisData.positiveBenefitsSummary || []).map(benefit => ({
-                            title: "Potential Benefit",
-                            description: benefit,
-                            confidence: "High"
-                        })),
-                        citations: [] // The prompt asks for citations in 'scientificSupport' inside combos, we can extract them if needed
-                    }
-                };
-
-                // Extract citations from badIngredientCombos if available
-                if (analysisData.badIngredientCombos && analysisData.badIngredientCombos.length > 0) {
-                    analysisData.badIngredientCombos.forEach(combo => {
-                        if (combo.scientificSupport) {
-                            combo.scientificSupport.forEach(cite => {
-                                formattedData.scientificAnalysis.citations.push({
-                                    title: "Supporting Evidence",
-                                    author: "Examine.com / Study",
-                                    year: "Recent",
-                                    journal: cite
-                                });
-                            });
-                        }
-                    });
-                }
-
-                setData(formattedData);
+                // Data is now already in the correct format from backend
+                setData(analysisData);
             } catch (err) {
                 console.error(err);
                 setError("Failed to analyze image. Make sure the server is running.");
             } finally {
-                setLoading(false);
+                Animated.timing(progress, {
+                    toValue: 1,
+                    duration: 500,
+                    useNativeDriver: false,
+                }).start(() => {
+                    setTimeout(() => setLoading(false), 200);
+                });
             }
         };
 
@@ -81,32 +150,37 @@ export default function ResultsScreen({ route, navigation }) {
         return COLORS.danger;
     };
 
-    // Loading State
+    // Loading View
     if (loading) {
+        const width = progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0%', '100%'],
+        });
+
         return (
             <View style={styles.container}>
-                <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={15} />
+                <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={20} />
                 <View style={[styles.header, { paddingTop: insets.top + SPACING.s }]}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                         <ArrowLeft size={24} color="#FFF" />
                     </TouchableOpacity>
                 </View>
                 <View style={styles.loadingContainer}>
-                    <View style={styles.loadingCircle}>
-                        <ActivityIndicator size="large" color={COLORS.primary} />
-                    </View>
                     <Text style={styles.loadingText}>Analyzing Ingredients...</Text>
                     <Text style={styles.loadingSubText}>Identifying additives & health risks</Text>
+                    <View style={styles.progressBarContainer}>
+                        <Animated.View style={[styles.progressBarFill, { width }]} />
+                    </View>
+                    <Text style={styles.loadingPercent}>Scanning...</Text>
                 </View>
             </View>
         );
     }
 
-    // Error State
-    if (error) {
+    if (error || !data) {
         return (
             <View style={styles.container}>
-                <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={15} />
+                <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={20} />
                 <View style={[styles.header, { paddingTop: insets.top + SPACING.s }]}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                         <ArrowLeft size={24} color="#FFF" />
@@ -114,24 +188,7 @@ export default function ResultsScreen({ route, navigation }) {
                 </View>
                 <View style={styles.loadingContainer}>
                     <Text style={styles.loadingText}>Error</Text>
-                    <Text style={styles.loadingSubText}>{error}</Text>
-                </View>
-            </View>
-        );
-    }
-
-    // Null data check
-    if (!data) {
-        return (
-            <View style={styles.container}>
-                <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={15} />
-                <View style={[styles.header, { paddingTop: insets.top + SPACING.s }]}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <ArrowLeft size={24} color="#FFF" />
-                    </TouchableOpacity>
-                </View>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={COLORS.primary} />
+                    <Text style={styles.loadingSubText}>{error || "No data received"}</Text>
                 </View>
             </View>
         );
@@ -141,213 +198,226 @@ export default function ResultsScreen({ route, navigation }) {
 
     return (
         <View style={styles.container}>
-            {/* Background Image (Fixed) */}
-            <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={5} />
+            <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={10} />
 
-            {/* Fixed Header (Back Button) */}
             <View style={[styles.header, { paddingTop: insets.top + SPACING.s }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <ArrowLeft size={24} color="#FFF" />
                 </TouchableOpacity>
             </View>
 
-            {/* Scrollable Content "Sheet" */}
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-            >
-                {/* Transparent Spacer to show image */}
-                <View style={{ height: SCREEN_HEIGHT * 0.5 }} />
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+                <View style={{ height: 60 }} />
 
-                {/* Actual Content Container */}
-                <View style={[styles.sheetContent, { paddingBottom: insets.bottom + SPACING.xl }]}>
-                    {/* Drag Handle Visual */}
-                    <View style={styles.dragHandleContainer}>
-                        <View style={styles.dragHandle} />
+                <Text style={styles.pageTitle}>Analysis Results</Text>
+
+                {/* Score Section (Restored) */}
+                <View style={styles.scoreSection}>
+                    <View style={[styles.scoreCircle, { borderColor: scoreColor }]}>
+                        <Text style={[styles.scoreValue, { color: scoreColor }]}>{data.overallWeightedHealthScore}</Text>
                     </View>
-
-                    {/* Score Section */}
-                    <View style={styles.scoreSection}>
-                        <View style={[styles.scoreCircle, { borderColor: scoreColor }]}>
-                            <Text style={[styles.scoreValue, { color: scoreColor }]}>{data.overallWeightedHealthScore}</Text>
-                        </View>
-                        <View style={styles.scoreTextContainer}>
-                            <Text style={styles.scoreLabel}>Health Score</Text>
-                            <Text style={[styles.assessment, { color: scoreColor }]}>{data.appAssessment}</Text>
-                        </View>
+                    <View style={styles.scoreTextContainer}>
+                        <Text style={styles.scoreLabel}>Health Score</Text>
+                        <Text style={[styles.assessment, { color: scoreColor }]}>{data.appAssessment}</Text>
                     </View>
+                </View>
 
-                    {/* Worst Side Effects */}
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <AlertTriangle size={20} color={COLORS.danger} />
-                            <Text style={styles.sectionTitle}>Potential Side Effects</Text>
-                        </View>
-                        <View style={styles.card}>
-                            {data.worstSideEffectsSummary.map((effect, index) => (
-                                <View key={index} style={styles.bulletPoint}>
-                                    <View style={styles.bullet} />
-                                    <Text style={styles.bulletText}>{effect}</Text>
-                                </View>
-                            ))}
-                        </View>
-                    </View>
+                {/* Interactive Cards */}
+                <View style={styles.cardsContainer}>
 
-                    {/* Bad Ingredient Combos */}
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <XCircle size={20} color={COLORS.warning} />
-                            <Text style={styles.sectionTitle}>Harmful Combinations</Text>
-                        </View>
+                    {/* 1. Overall Analysis */}
+                    <InfoCard
+                        title="Overall Analysis"
+                        icon={FileText}
+                        color={scoreColor}
+                        delay={0}
+                        onPress={() => setActiveModal('analysis')}
+                    />
 
-                        {data.badIngredientCombos.map((combo, index) => (
-                            <View key={index} style={styles.comboCard}>
-                                <Text style={styles.comboTitle}>Combo #{index + 1}</Text>
-                                <Text style={styles.comboIngredients}>{combo.combo}</Text>
+                    {/* 2. Ingredients List */}
+                    <InfoCard
+                        title="Ingredients List"
+                        icon={List}
+                        color={COLORS.primary}
+                        delay={100}
+                        onPress={() => setActiveModal('ingredients')}
+                    />
 
-                                <View style={styles.divider} />
+                    {/* 3. Potentially Harmful Components */}
+                    <InfoCard
+                        title="Harmful Components"
+                        icon={ShieldAlert}
+                        color={COLORS.danger}
+                        delay={200}
+                        onPress={() => setActiveModal('harmful')}
+                    />
 
-                                <Text style={styles.subHeader}>Risk Factor:</Text>
-                                <Text style={styles.reasonText}>{combo.risksFactor}</Text>
+                    {/* 4. Potential Side Effects */}
+                    <InfoCard
+                        title="Potential Side Effects"
+                        icon={AlertTriangle}
+                        color={COLORS.warning}
+                        delay={300}
+                        onPress={() => setActiveModal('effects')}
+                    />
 
-                                <View style={styles.divider} />
+                    {/* 5. Harmful Combinations */}
+                    <InfoCard
+                        title="Harmful Combinations"
+                        icon={XCircle}
+                        color={COLORS.danger}
+                        delay={400}
+                        onPress={() => setActiveModal('combos')}
+                    />
 
-                                <Text style={styles.subHeader}>Risks:</Text>
-                                {combo.comboRisks.map((risk, rIndex) => (
-                                    <Text key={rIndex} style={styles.reasonText}>• {risk}</Text>
-                                ))}
-
-                                <View style={styles.divider} />
-
-                                <Text style={styles.subHeader}>Evidence:</Text>
-                                {combo.scientificSupport.map((support, sIndex) => (
-                                    <Text key={sIndex} style={[styles.reasonText, { fontStyle: 'italic', fontSize: 12 }]}>{support}</Text>
-                                ))}
-                            </View>
-                        ))}
-                    </View>
-
-                    {/* Scientific Analysis Section */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Scientific Analysis</Text>
-                        <Text style={styles.summaryText}>{data.scientificAnalysis.summary}</Text>
-                    </View>
-
-                    {/* Drawbacks Accordion */}
-                    <View style={styles.accordionContainer}>
-                        <View style={styles.accordionHeader}>
-                            <View style={styles.accordionTitleRow}>
-                                <AlertTriangle size={20} color={COLORS.danger} />
-                                <Text style={styles.accordionTitle}>Potential Drawbacks</Text>
-                            </View>
-                            {/* In a real app, this would be interactive. For now, we show it expanded. */}
-                        </View>
-                        <View style={styles.accordionContent}>
-                            {data.scientificAnalysis.drawbacks.map((item, index) => (
-                                <View key={index} style={styles.evidenceCard}>
-                                    <Text style={styles.evidenceTitle}>{item.title}</Text>
-                                    <Text style={styles.evidenceDescription}>{item.description}</Text>
-                                    <View style={styles.evidenceMeta}>
-                                        <Text style={styles.evidenceTag}>Confidence: {item.confidence}</Text>
-                                        <Text style={[styles.evidenceTag, { color: COLORS.danger }]}>Severity: {item.severity}</Text>
-                                    </View>
-                                </View>
-                            ))}
-                        </View>
-                    </View>
-
-                    {/* Benefits Accordion */}
-                    <View style={styles.accordionContainer}>
-                        <View style={styles.accordionHeader}>
-                            <View style={styles.accordionTitleRow}>
-                                <CheckCircle size={20} color={COLORS.success} />
-                                <Text style={styles.accordionTitle}>Potential Benefits</Text>
-                            </View>
-                        </View>
-                        <View style={styles.accordionContent}>
-                            {data.scientificAnalysis.benefits.map((item, index) => (
-                                <View key={index} style={styles.evidenceCard}>
-                                    <Text style={styles.evidenceTitle}>{item.title}</Text>
-                                    <Text style={styles.evidenceDescription}>{item.description}</Text>
-                                    <View style={styles.evidenceMeta}>
-                                        <Text style={[styles.evidenceTag, { color: COLORS.success }]}>Confidence: {item.confidence}</Text>
-                                    </View>
-                                </View>
-                            ))}
-                        </View>
-                    </View>
-
-                    {/* Citations Accordion */}
-                    <View style={styles.accordionContainer}>
-                        <View style={styles.accordionHeader}>
-                            <View style={styles.accordionTitleRow}>
-                                <BookOpen size={20} color={COLORS.textSecondary} />
-                                <Text style={styles.accordionTitle}>Research & Citations</Text>
-                            </View>
-                        </View>
-                        <View style={styles.accordionContent}>
-                            {data.scientificAnalysis.citations.map((item, index) => (
-                                <View key={index} style={styles.citationCard}>
-                                    <Text style={styles.citationTitle}>"{item.title}"</Text>
-                                    <Text style={styles.citationAuthor}>{item.author} • {item.year}</Text>
-                                    <Text style={styles.citationJournal}>{item.journal}</Text>
-                                </View>
-                            ))}
-                        </View>
-                    </View>
-
-                    {/* NEW: Better Alternatives Section */}
-                    {data.alternatives && data.alternatives.length > 0 && (
-                        <View style={styles.section}>
-                            <View style={styles.sectionHeader}>
-                                <Text style={[styles.sectionTitle, { color: COLORS.success }]}>✨ Better Alternatives</Text>
-                            </View>
-                            <Text style={styles.sectionSubtitle}>Community suggested swaps for this item</Text>
-
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.alternativesContainer}>
-                                {data.alternatives.map((alt) => (
-                                    <View key={alt.id} style={styles.altCard}>
-                                        <View style={styles.altImagePlaceholder}>
-                                            {/* In a real app, use <Image source={{ uri: alt.image }} /> */}
-                                            <Text style={styles.altEmoji}>🍎</Text>
-                                        </View>
-                                        <View style={styles.altContent}>
-                                            <View style={styles.altHeader}>
-                                                <Text style={styles.altName}>{alt.name}</Text>
-                                                <View style={styles.altScoreBadge}>
-                                                    <Text style={styles.altScore}>{alt.score}</Text>
-                                                </View>
-                                            </View>
-                                            <Text style={styles.altBrand}>{alt.brand}</Text>
-                                            <Text style={styles.altReason}>"{alt.reason}"</Text>
-                                        </View>
-                                    </View>
-                                ))}
-                            </ScrollView>
-                        </View>
-                    )}
+                    {/* 6. Scholarly Sources */}
+                    <InfoCard
+                        title="Scholarly Sources"
+                        icon={BookOpen}
+                        color={COLORS.secondary}
+                        delay={500}
+                        onPress={() => setActiveModal('sources')}
+                    />
                 </View>
             </ScrollView>
+
+            {/* --- Modals --- */}
+
+            {/* Overall Analysis Modal */}
+            <DetailModal
+                visible={activeModal === 'analysis'}
+                onClose={() => setActiveModal(null)}
+                title="Overall Analysis"
+                color={scoreColor}
+                icon={FileText}
+            >
+                <View style={styles.scoreBadgeContainer}>
+                    <Text style={[styles.scoreBadgeText, { color: scoreColor }]}>Score: {data.overallWeightedHealthScore}/100</Text>
+                    <Text style={[styles.assessmentText, { color: scoreColor }]}>{data.appAssessment}</Text>
+                </View>
+                <Text style={styles.modalBodyText}>{data.overallAnalysis}</Text>
+            </DetailModal>
+
+            {/* Ingredients Modal */}
+            <DetailModal
+                visible={activeModal === 'ingredients'}
+                onClose={() => setActiveModal(null)}
+                title="Ingredients List"
+                color={COLORS.primary}
+                icon={List}
+            >
+                {data.ingredients && data.ingredients.map((item, index) => (
+                    <View key={index} style={styles.listItem}>
+                        <Text style={styles.listItemTitle}>{item.name}</Text>
+                        <Text style={styles.listItemText}>{item.function}</Text>
+                    </View>
+                ))}
+            </DetailModal>
+
+            {/* Harmful Components Modal */}
+            <DetailModal
+                visible={activeModal === 'harmful'}
+                onClose={() => setActiveModal(null)}
+                title="Harmful Components"
+                color={COLORS.danger}
+                icon={ShieldAlert}
+            >
+                {(!data.harmfulComponents || data.harmfulComponents.length === 0) ? (
+                    <Text style={styles.modalBodyText}>No major harmful components detected.</Text>
+                ) : (
+                    data.harmfulComponents.map((item, index) => (
+                        <View key={index} style={styles.card}>
+                            <Text style={styles.cardTitle}>{item.name}</Text>
+                            <Text style={styles.cardBody}>{item.concern}</Text>
+                            <Text style={styles.cardLabel}>Severity: {item.severity}</Text>
+                        </View>
+                    ))
+                )}
+            </DetailModal>
+
+            {/* Side Effects Modal */}
+            <DetailModal
+                visible={activeModal === 'effects'}
+                onClose={() => setActiveModal(null)}
+                title="Potential Side Effects"
+                color={COLORS.warning}
+                icon={AlertTriangle}
+            >
+                {(!data.sideEffects || data.sideEffects.length === 0) ? (
+                    <Text style={styles.modalBodyText}>No significant side effects reported.</Text>
+                ) : (
+                    data.sideEffects.map((item, index) => (
+                        <View key={index} style={styles.listItem}>
+                            <Text style={styles.listItemTitle}>{item.effect}</Text>
+                            <Text style={styles.listItemText}>Frequency: {item.frequency}</Text>
+                        </View>
+                    ))
+                )}
+            </DetailModal>
+
+            {/* Combos Modal */}
+            <DetailModal
+                visible={activeModal === 'combos'}
+                onClose={() => setActiveModal(null)}
+                title="Harmful Combinations"
+                color={COLORS.danger}
+                icon={XCircle}
+            >
+                {(!data.harmfulCombinations || data.harmfulCombinations.length === 0) ? (
+                    <Text style={styles.modalBodyText}>No harmful combinations found.</Text>
+                ) : (
+                    data.harmfulCombinations.map((combo, index) => (
+                        <View key={index} style={styles.card}>
+                            <Text style={styles.cardTitle}>Combo #{index + 1}</Text>
+                            <Text style={styles.cardBody}>{combo.combo}</Text>
+                            <Text style={styles.cardLabel}>Risk:</Text>
+                            <Text style={styles.cardRisk}>{combo.risk}</Text>
+                        </View>
+                    ))
+                )}
+            </DetailModal>
+
+            {/* Sources Modal */}
+            <DetailModal
+                visible={activeModal === 'sources'}
+                onClose={() => setActiveModal(null)}
+                title="Scholarly Sources"
+                color={COLORS.secondary}
+                icon={BookOpen}
+            >
+                {(!data.scholarlySources || data.scholarlySources.length === 0) ? (
+                    <Text style={styles.modalBodyText}>No specific sources cited.</Text>
+                ) : (
+                    data.scholarlySources.map((source, index) => (
+                        <TouchableOpacity key={index} style={styles.card} onPress={() => source.url && Linking.openURL(source.url)}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <LinkIcon size={16} color={COLORS.primary} />
+                                <Text style={[styles.cardTitle, { color: COLORS.primary, marginBottom: 0 }]}>Source #{index + 1}</Text>
+                            </View>
+                            <Text style={[styles.cardBody, { marginTop: 8 }]}>{source.citation}</Text>
+                        </TouchableOpacity>
+                    ))
+                )}
+            </DetailModal>
+
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    // ... existing styles ...
     container: {
         flex: 1,
         backgroundColor: '#000',
     },
     backgroundImage: {
         ...StyleSheet.absoluteFillObject,
-        opacity: 0.4, // Darker for better text readability
+        opacity: 0.3,
     },
     header: {
         position: 'absolute',
         top: 0,
         left: 0,
-        zIndex: 100, // Ensure back button is always on top
+        zIndex: 100,
         paddingHorizontal: SPACING.m,
     },
     backButton: {
@@ -358,76 +428,27 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    loadingCircle: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: SPACING.m,
-    },
-    loadingText: {
-        color: '#FFF',
-        fontSize: 20,
-        fontWeight: '700',
-        marginBottom: SPACING.xs,
-    },
-    loadingSubText: {
-        color: COLORS.textSecondary,
-        fontSize: 14,
-    },
-    scrollView: {
-        flex: 1,
-    },
     scrollContent: {
-        flexGrow: 1,
+        padding: SPACING.m,
+        paddingTop: 80,
     },
-    sheetContent: {
-        backgroundColor: COLORS.background,
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-        paddingHorizontal: SPACING.m,
-        paddingTop: SPACING.s,
-        minHeight: SCREEN_HEIGHT * 0.6, // Ensure it takes up space
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: -5 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        elevation: 10,
-    },
-    dragHandleContainer: {
-        alignItems: 'center',
-        paddingVertical: SPACING.s,
-        marginBottom: SPACING.s,
-    },
-    dragHandle: {
-        width: 40,
-        height: 5,
-        backgroundColor: '#444',
-        borderRadius: 3,
-    },
+    // Score Section
     scoreSection: {
         alignItems: 'center',
         marginBottom: SPACING.l,
     },
     scoreCircle: {
-        width: 80, // Smaller score circle
-        height: 80,
-        borderRadius: 40,
-        borderWidth: 4,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 6,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: SPACING.xs,
+        marginBottom: SPACING.s,
         backgroundColor: 'rgba(0,0,0,0.5)',
     },
     scoreValue: {
-        fontSize: 24,
+        fontSize: 36,
         fontWeight: '800',
     },
     scoreTextContainer: {
@@ -435,249 +456,194 @@ const styles = StyleSheet.create({
     },
     scoreLabel: {
         color: COLORS.textSecondary,
-        fontSize: 10,
+        fontSize: 12,
         textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: 4,
     },
     assessment: {
-        fontSize: 20,
+        fontSize: 24,
         fontWeight: '800',
-        marginTop: 4,
     },
-    section: {
-        marginBottom: SPACING.l,
+    // Cards Layout
+    cardsContainer: {
+        gap: SPACING.m,
     },
-    sectionHeader: {
+    infoCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: SPACING.s,
-        marginBottom: SPACING.s,
-    },
-    sectionTitle: {
-        color: COLORS.text,
-        fontSize: 18,
-        fontWeight: '700',
-        marginBottom: SPACING.xs,
-    },
-    sectionSubtitle: {
-        color: COLORS.textSecondary,
-        fontSize: 14,
-        marginBottom: SPACING.m,
-    },
-    card: {
-        backgroundColor: COLORS.surface,
-        borderRadius: 12,
-        padding: SPACING.m,
-    },
-    bulletPoint: {
-        flexDirection: 'row',
-        marginBottom: SPACING.s,
-        gap: SPACING.s,
-    },
-    bullet: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: COLORS.danger,
-        marginTop: 8,
-    },
-    bulletText: {
-        color: COLORS.textSecondary,
-        fontSize: 14,
-        lineHeight: 20,
-        flex: 1,
-    },
-    comboCard: {
-        backgroundColor: COLORS.surface,
-        borderRadius: 12,
-        padding: SPACING.m,
-        marginBottom: SPACING.m,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    comboTitle: {
-        color: COLORS.warning,
-        fontSize: 14,
-        fontWeight: '700',
-        marginBottom: SPACING.xs,
-        textTransform: 'uppercase',
-    },
-    comboIngredients: {
-        color: COLORS.text,
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: SPACING.m,
-    },
-    divider: {
-        height: 1,
-        backgroundColor: COLORS.border,
-        marginVertical: SPACING.s,
-    },
-    subHeader: {
-        color: COLORS.textSecondary,
-        fontSize: 12,
-        fontWeight: '700',
-        marginBottom: SPACING.xs,
-        textTransform: 'uppercase',
-    },
-    reasonText: {
-        color: COLORS.textSecondary,
-        fontSize: 14,
-        marginBottom: 4,
-    },
-    tags: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: SPACING.xs,
-        marginTop: SPACING.xs,
-    },
-    tag: {
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        paddingHorizontal: SPACING.s,
-        paddingVertical: 4,
-        borderRadius: 4,
-    },
-    tagText: {
-        color: COLORS.text,
-        fontSize: 12,
-    },
-    summaryText: {
-        color: COLORS.text,
-        fontSize: 16,
-        lineHeight: 24,
-    },
-    // Accordion Styles
-    accordionContainer: {
-        marginBottom: SPACING.m,
-        backgroundColor: COLORS.surface,
-        borderRadius: 12,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    accordionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        borderRadius: 20,
         padding: SPACING.m,
-        backgroundColor: 'rgba(255,255,255,0.05)',
-    },
-    accordionTitleRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: SPACING.s,
-    },
-    accordionTitle: {
-        color: COLORS.text,
-        fontSize: 16,
-        fontWeight: '700',
-    },
-    accordionContent: {
-        padding: SPACING.m,
-    },
-    evidenceCard: {
-        marginBottom: SPACING.m,
-    },
-    evidenceTitle: {
-        color: COLORS.text,
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 4,
-    },
-    evidenceDescription: {
-        color: COLORS.textSecondary,
-        fontSize: 14,
-        lineHeight: 20,
-        marginBottom: 8,
-    },
-    evidenceMeta: {
-        flexDirection: 'row',
-        gap: SPACING.m,
-    },
-    evidenceTag: {
-        color: COLORS.textSecondary,
-        fontSize: 12,
-        fontWeight: '700',
-        textTransform: 'uppercase',
-    },
-    citationCard: {
-        marginBottom: SPACING.m,
-        paddingLeft: SPACING.s,
-        borderLeftWidth: 2,
-        borderLeftColor: COLORS.primary,
-    },
-    citationTitle: {
-        color: COLORS.text,
-        fontSize: 14,
-        fontStyle: 'italic',
-        marginBottom: 2,
-    },
-    citationAuthor: {
-        color: COLORS.textSecondary,
-        fontSize: 12,
-        fontWeight: '700',
-    },
-    citationJournal: {
-        color: COLORS.textSecondary,
-        fontSize: 12,
-    },
-    // Alternatives Styles
-    alternativesContainer: {
-        gap: SPACING.m,
-        paddingRight: SPACING.m,
-    },
-    altCard: {
-        width: 200,
-        backgroundColor: COLORS.surface,
-        borderRadius: 12,
-        overflow: 'hidden',
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
     },
-    altImagePlaceholder: {
-        height: 100,
-        backgroundColor: '#333',
+    iconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',
+        marginRight: SPACING.m,
     },
-    altEmoji: {
-        fontSize: 40,
+    cardMainTitle: {
+        flex: 1,
+        color: '#FFF',
+        fontSize: 18,
+        fontWeight: '600',
     },
-    altContent: {
+    // Loading Styles
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        color: '#FFF',
+        fontSize: 24,
+        fontWeight: '700',
+        marginBottom: SPACING.xs,
+        letterSpacing: 0.5,
+    },
+    loadingSubText: {
+        color: COLORS.textSecondary,
+        fontSize: 16,
+        marginBottom: SPACING.xl,
+    },
+    progressBarContainer: {
+        width: '80%',
+        height: 6,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 3,
+        overflow: 'hidden',
+        marginBottom: SPACING.s,
+    },
+    progressBarFill: {
+        height: '100%',
+        backgroundColor: COLORS.primary,
+        borderRadius: 3,
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 10,
+    },
+    loadingPercent: {
+        color: COLORS.primary,
+        fontSize: 12,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        justifyContent: 'flex-end',
+    },
+    modalBackdrop: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+    },
+    modalContent: {
+        backgroundColor: COLORS.surface,
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
+        height: '80%',
+        overflow: 'hidden',
+    },
+    modalHeader: {
+        padding: SPACING.m,
+        paddingTop: SPACING.l,
+    },
+    modalHeaderTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: '800',
+        color: '#000',
+        flex: 1,
+        marginLeft: SPACING.s,
+    },
+    closeButton: {
+        padding: 4,
+    },
+    modalBody: {
         padding: SPACING.m,
     },
-    altHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 4,
+    modalBodyText: {
+        fontSize: 16,
+        color: COLORS.textSecondary,
+        lineHeight: 24,
+        marginBottom: SPACING.m,
     },
-    altName: {
-        color: COLORS.text,
+    listItem: {
+        marginBottom: SPACING.m,
+        paddingLeft: SPACING.s,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.1)',
+        paddingBottom: SPACING.s,
+    },
+    listItemTitle: {
         fontSize: 16,
         fontWeight: '700',
-        flex: 1,
-        marginRight: 8,
+        color: COLORS.text,
+        marginBottom: 4,
     },
-    altScoreBadge: {
-        backgroundColor: COLORS.success,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 4,
-    },
-    altScore: {
-        color: '#000',
-        fontWeight: '800',
-        fontSize: 12,
-    },
-    altBrand: {
+    listItemText: {
+        fontSize: 15,
         color: COLORS.textSecondary,
-        fontSize: 12,
+        lineHeight: 22,
+    },
+    card: {
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 16,
+        padding: SPACING.m,
+        marginBottom: SPACING.m,
+    },
+    cardTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: COLORS.text,
+        marginBottom: 4,
+    },
+    cardBody: {
+        fontSize: 14,
+        color: COLORS.text,
+        fontStyle: 'italic',
         marginBottom: 8,
     },
-    altReason: {
-        color: COLORS.text,
+    cardLabel: {
         fontSize: 12,
-        fontStyle: 'italic',
-        opacity: 0.8,
+        fontWeight: '700',
+        color: COLORS.textSecondary,
+        textTransform: 'uppercase',
+        marginTop: 8,
+        marginBottom: 4,
+    },
+    cardRisk: {
+        fontSize: 14,
+        color: COLORS.danger,
+        marginBottom: 2,
+    },
+    // Analysis Modal Specifics
+    scoreBadgeContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: SPACING.m,
+        paddingBottom: SPACING.s,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.1)',
+    },
+    scoreBadgeText: {
+        fontSize: 20,
+        fontWeight: '800',
+    },
+    assessmentText: {
+        fontSize: 18,
+        fontWeight: '700',
+        textTransform: 'uppercase',
     },
 });

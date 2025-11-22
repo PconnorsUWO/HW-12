@@ -16,26 +16,23 @@ Given noisy OCR text from a food or beverage package label, first identify the I
 3. Deduplicate bilingual lists (prefer English).
 
 **PHASE 2: ANALYSIS**
-Your task is to analyze the extracted INGREDIENT LIST using the knowledge base of **examine.com** (or equivalent authoritative evidence-based source). The analysis must prioritize the **weighted, cumulative risk of ingredient combinations** over individual ingredient quality.
+Analyze the product based on the extracted ingredients using authoritative sources (e.g., Examine.com, PubMed).
+You must provide a comprehensive breakdown with the following 6 sections:
 
-**ANALYSIS FOCUS & RULESET:**
-1.  **Core Priority:** Identify and detail negative/damaging effects and risks, especially synergistic negative effects.
-2.  **Required Detail:** Essential side effects and harmful ingredients MUST be supported by a brief mention of **scientific findings or studies** (cite the source/context, e.g., "[Examine.com: Multiple human trials]").
-3.  **Beneficial Effects:** Must be included to allow the user to weigh them against the risks.
-4.  **Non-Redundancy:** Ensure that the content in 'worstSideEffectsSummary' is a high-level summary and **NOT** a direct copy of the detailed points in the 'badIngredientCombos' section.
+1. **Overall Analysis**: A balanced, evidence-based assessment of safety, efficacy, and quality. (Text block)
+2. **Ingredients List**: A clean list of ingredients with their primary functions.
+3. **Potentially Harmful Components**: Identify risks (dosage, purity, population warnings).
+4. **Potential Side Effects**: Documented side effects organized by severity/frequency.
+5. **Potentially Harmful Combinations**: Dangerous interactions with meds, supplements, foods, or conditions.
+6. **Scholarly Sources**: References in consistent citation format.
 
-**CALCULATION LOGIC FOR overallWeightedHealthScore (STARTING SCORE: 100):**
-* The score must weigh the overall health impact, emphasizing the deduction for damaging effects.
-1.  **Deduction 1 (Critical Synergy):** Subtract **25** for the combined effect of multiple strong stimulants (e.g., high-dose caffeine + synephrine/yohimbine).
-2.  **Deduction 2 (Artificial Sweeteners):** Subtract **20** for the use of multiple non-nutritive, artificial sweeteners (e.g., sucralose AND acesulfame K).
-3.  **Deduction 3 (Toxicity Potential):** Subtract **10** for the presence of potentially accumulating fat-soluble vitamins (A, D, E, K) or high-risk B vitamins (e.g., high-dose B6).
-4.  **Discretionary Deduction:** Apply an additional **1 to 20 point deduction** for other significant, high-risk ingredient combinations not covered above.
-5.  **Return Final Score.**
+**SCORING LOGIC (0-100):**
+- Start at 100.
+- Deduct for harmful ingredients, dangerous combos, and high sugar/additives.
+- Score < 50 is POOR, 50-69 MODERATE, 70-79 GOOD, 80+ EXCELLENT.
 
-**TASK & FORMATTING RULES (STRICT JSON OUTPUT ONLY):**
-1.  **Assessment Rule:** Assign **appAssessment** based on the final calculated score: “EXCELLENT” (Score 80+), “GOOD” (Score 70-79), ”MODERATE" (Score 50-69), or “POOR” (Score 0-49).
-2.  **Array Formatting:** The fields **worstSideEffectsSummary**, **positiveBenefitsSummary**, **comboRisks**, and **scientificSupport** must be structured as **ARRAYS OF STRINGS** for display as bullet points.
-3.  **Output:** Provide the **ENTIRE analysis** as a single JSON object that **STRICTLY** adheres to the REQUIRED JSON STRUCTURE.
+**OUTPUT FORMAT:**
+Strictly output a single JSON object matching the schema below.
 """
 
 def _get_client(api_key: Optional[str] = None, model_name: str = "gemini-2.0-flash-exp", system_instruction: Optional[str] = None):
@@ -58,7 +55,6 @@ def extract_ingredients(
     model = _get_client(api_key, model_name, system_instruction=SYSTEM_MESSAGE)
 
     # Define the expected schema for strict JSON output
-    # This ensures the model returns exactly what you want
     response = model.generate_content(
         label_text,  # User input goes here
         generation_config=genai.types.GenerationConfig(
@@ -68,29 +64,55 @@ def extract_ingredients(
                 "properties": {
                     "appAssessment": {"type": "STRING"},
                     "overallWeightedHealthScore": {"type": "INTEGER"},
-                    "worstSideEffectsSummary": {
+                    "overallAnalysis": {"type": "STRING"},
+                    "ingredients": {
                         "type": "ARRAY",
-                        "items": {"type": "STRING"}
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "name": {"type": "STRING"},
+                                "function": {"type": "STRING"}
+                            }
+                        }
                     },
-                    "positiveBenefitsSummary": {
+                    "harmfulComponents": {
                         "type": "ARRAY",
-                        "items": {"type": "STRING"}
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "name": {"type": "STRING"},
+                                "concern": {"type": "STRING"},
+                                "severity": {"type": "STRING"}
+                            }
+                        }
                     },
-                    "badIngredientCombos": {
+                    "sideEffects": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "effect": {"type": "STRING"},
+                                "frequency": {"type": "STRING"}
+                            }
+                        }
+                    },
+                    "harmfulCombinations": {
                         "type": "ARRAY",
                         "items": {
                             "type": "OBJECT",
                             "properties": {
                                 "combo": {"type": "STRING"},
-                                "risksFactor": {"type": "STRING"},
-                                "comboRisks": {
-                                    "type": "ARRAY",
-                                    "items": {"type": "STRING"}
-                                },
-                                "scientificSupport": {
-                                    "type": "ARRAY",
-                                    "items": {"type": "STRING"}
-                                }
+                                "risk": {"type": "STRING"}
+                            }
+                        }
+                    },
+                    "scholarlySources": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "citation": {"type": "STRING"},
+                                "url": {"type": "STRING"}
                             }
                         }
                     }

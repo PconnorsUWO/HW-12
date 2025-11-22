@@ -11,15 +11,12 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(str(ROOT_DIR / ".env"))
 
 GOOGLE_API_KEY = os.getenv("VISION_API_KEY")
-# don't raise at import time so module can be imported/used for local testing
-# if you want strict behavior, raise inside extract_text before making the request
 
 DATA_DIR = ROOT_DIR / "backend" / "data"
 
 def extract_text(image_path: str) -> str:
     image_path = Path(image_path)
 
-    # If a relative path or missing, try data dir and cwd before failing
     if not image_path.exists():
         candidate = DATA_DIR / image_path.name
         if candidate.exists():
@@ -35,7 +32,7 @@ def extract_text(image_path: str) -> str:
         img_data = base64.b64encode(img_file.read()).decode()
 
     if not GOOGLE_API_KEY:
-        raise RuntimeError("VISION_API_KEY missing. Set VISION_API_KEY in .env at project root or export VISION_API_KEY in your environment.")
+        raise RuntimeError("api key")
 
     url = f"https://vision.googleapis.com/v1/images:annotate?key={GOOGLE_API_KEY}"
 
@@ -48,12 +45,10 @@ def extract_text(image_path: str) -> str:
         ]
     }
 
-    # POST request
     response = requests.post(url, json=payload)
     try:
         response.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        # Try to get a helpful error payload from Google and raise a clearer error
         try:
             err_body = response.json()
         except Exception:
@@ -79,6 +74,6 @@ def extract_text(image_path: str) -> str:
 
 
 if __name__ == "__main__":
-    sample_path = DATA_DIR / "test.jpg"  # change this if needed
+    sample_path = DATA_DIR / "test.jpg"  
     text = extract_text(sample_path)
     print(text)

@@ -2,11 +2,16 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 import tempfile
 import os
+import sys
 from pathlib import Path
 
+# Add the backend directory to Python path
+backend_dir = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(backend_dir))
+
 # Import your existing OCR functions
-from backend.ocr.get_text import extract_text
-from backend.ocr.format_text import _get_client
+from ocr.get_text import extract_text
+from ocr.format_text import _get_client
 
 app = FastAPI(title="OCR + Gemini API", version="1.0.0")
 

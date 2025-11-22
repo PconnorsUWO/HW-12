@@ -32,7 +32,7 @@ def run_pipeline(image_path: str):
 
     return {
         "ocr_raw_text": ocr_text,
-        "ingredients": result.get("ingredients", [])
+        "analysis": result  # Return the full analysis object
     }
 
 

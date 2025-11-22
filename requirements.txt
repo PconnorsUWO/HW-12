@@ -1,0 +1,6 @@
+flask
+flask-cors
+werkzeug
+google-generativeai
+python-dotenv
+requests

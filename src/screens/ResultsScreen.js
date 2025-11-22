@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Image, ActivityIndicator, Touchable
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, AlertTriangle, XCircle, CheckCircle, BookOpen } from 'lucide-react-native';
 import { COLORS, SPACING } from '../constants/theme';
-import { analyzeImage } from '../services/mockBackend';
+import { uploadImage } from '../services/api';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -11,16 +11,69 @@ export default function ResultsScreen({ route, navigation }) {
     const { imageUri } = route.params;
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const insets = useSafeAreaInsets();
 
     useEffect(() => {
         const fetchData = async () => {
-            const result = await analyzeImage(imageUri);
-            setData(result);
-            setLoading(false);
+            try {
+                // Use the real API
+                const result = await uploadImage(imageUri);
+
+                // Backend returns: { ocr_raw_text: "...", analysis: {...} }
+                // Extract the analysis object
+                const analysisData = result.analysis || result;
+
+                // Ensure scientificAnalysis structure exists for the UI if backend doesn't provide it exactly as expected
+                // The new prompt returns 'positiveBenefitsSummary' and 'worstSideEffectsSummary'
+                // We map these to the UI's expected 'scientificAnalysis' structure
+
+                const formattedData = {
+                    ...analysisData,
+                    scientificAnalysis: {
+                        summary: analysisData.appAssessment === "EXCELLENT" ? "This product appears to be well-formulated." : "This product has some potential concerns.",
+                        drawbacks: (analysisData.worstSideEffectsSummary || []).map(effect => ({
+                            title: "Potential Risk",
+                            description: effect,
+                            confidence: "High",
+                            severity: "Medium"
+                        })),
+                        benefits: (analysisData.positiveBenefitsSummary || []).map(benefit => ({
+                            title: "Potential Benefit",
+                            description: benefit,
+                            confidence: "High"
+                        })),
+                        citations: [] // The prompt asks for citations in 'scientificSupport' inside combos, we can extract them if needed
+                    }
+                };
+
+                // Extract citations from badIngredientCombos if available
+                if (analysisData.badIngredientCombos && analysisData.badIngredientCombos.length > 0) {
+                    analysisData.badIngredientCombos.forEach(combo => {
+                        if (combo.scientificSupport) {
+                            combo.scientificSupport.forEach(cite => {
+                                formattedData.scientificAnalysis.citations.push({
+                                    title: "Supporting Evidence",
+                                    author: "Examine.com / Study",
+                                    year: "Recent",
+                                    journal: cite
+                                });
+                            });
+                        }
+                    });
+                }
+
+                setData(formattedData);
+            } catch (err) {
+                console.error(err);
+                setError("Failed to analyze image. Make sure the server is running.");
+            } finally {
+                setLoading(false);
+            }
         };
+
         fetchData();
-    }, []);
+    }, [imageUri]);
 
     const getScoreColor = (score) => {
         if (score >= 80) return COLORS.success;
@@ -44,6 +97,41 @@ export default function ResultsScreen({ route, navigation }) {
                     </View>
                     <Text style={styles.loadingText}>Analyzing Ingredients...</Text>
                     <Text style={styles.loadingSubText}>Identifying additives & health risks</Text>
+                </View>
+            </View>
+        );
+    }
+
+    // Error State
+    if (error) {
+        return (
+            <View style={styles.container}>
+                <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={15} />
+                <View style={[styles.header, { paddingTop: insets.top + SPACING.s }]}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                        <ArrowLeft size={24} color="#FFF" />
+                    </TouchableOpacity>
+                </View>
+                <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>Error</Text>
+                    <Text style={styles.loadingSubText}>{error}</Text>
+                </View>
+            </View>
+        );
+    }
+
+    // Null data check
+    if (!data) {
+        return (
+            <View style={styles.container}>
+                <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={15} />
+                <View style={[styles.header, { paddingTop: insets.top + SPACING.s }]}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                        <ArrowLeft size={24} color="#FFF" />
+                    </TouchableOpacity>
+                </View>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={COLORS.primary} />
                 </View>
             </View>
         );
@@ -120,21 +208,22 @@ export default function ResultsScreen({ route, navigation }) {
 
                                 <View style={styles.divider} />
 
-                                <Text style={styles.subHeader}>Why it's bad:</Text>
-                                {combo.reasoning.map((reason, rIndex) => (
-                                    <Text key={rIndex} style={styles.reasonText}>• {reason}</Text>
+                                <Text style={styles.subHeader}>Risk Factor:</Text>
+                                <Text style={styles.reasonText}>{combo.risksFactor}</Text>
+
+                                <View style={styles.divider} />
+
+                                <Text style={styles.subHeader}>Risks:</Text>
+                                {combo.comboRisks.map((risk, rIndex) => (
+                                    <Text key={rIndex} style={styles.reasonText}>• {risk}</Text>
                                 ))}
 
                                 <View style={styles.divider} />
 
-                                <Text style={styles.subHeader}>Symptoms:</Text>
-                                <View style={styles.tags}>
-                                    {combo.potentialSideEffects.map((effect, eIndex) => (
-                                        <View key={eIndex} style={styles.tag}>
-                                            <Text style={styles.tagText}>{effect}</Text>
-                                        </View>
-                                    ))}
-                                </View>
+                                <Text style={styles.subHeader}>Evidence:</Text>
+                                {combo.scientificSupport.map((support, sIndex) => (
+                                    <Text key={sIndex} style={[styles.reasonText, { fontStyle: 'italic', fontSize: 12 }]}>{support}</Text>
+                                ))}
                             </View>
                         ))}
                     </View>

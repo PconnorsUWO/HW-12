@@ -209,8 +209,6 @@ export default function ResultsScreen({ route, navigation }) {
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <View style={{ height: 60 }} />
 
-                <Text style={styles.pageTitle}>Analysis Results</Text>
-
                 {/* Score Section (Restored) */}
                 <View style={styles.scoreSection}>
                     <View style={[styles.scoreCircle, { borderColor: scoreColor }]}>
@@ -218,7 +216,6 @@ export default function ResultsScreen({ route, navigation }) {
                     </View>
                     <View style={styles.scoreTextContainer}>
                         <Text style={styles.scoreLabel}>Health Score</Text>
-                        <Text style={[styles.assessment, { color: scoreColor }]}>{data.appAssessment}</Text>
                     </View>
                 </View>
 
@@ -261,16 +258,7 @@ export default function ResultsScreen({ route, navigation }) {
                         onPress={() => setActiveModal('effects')}
                     />
 
-                    {/* 5. Harmful Combinations */}
-                    <InfoCard
-                        title="Harmful Combinations"
-                        icon={XCircle}
-                        color={COLORS.danger}
-                        delay={400}
-                        onPress={() => setActiveModal('combos')}
-                    />
-
-                    {/* 6. Scholarly Sources */}
+                    {/* . Scholarly Sources */}
                     <InfoCard
                         title="Scholarly Sources"
                         icon={BookOpen}
@@ -291,10 +279,6 @@ export default function ResultsScreen({ route, navigation }) {
                 color={scoreColor}
                 icon={FileText}
             >
-                <View style={styles.scoreBadgeContainer}>
-                    <Text style={[styles.scoreBadgeText, { color: scoreColor }]}>Score: {data.overallWeightedHealthScore}/100</Text>
-                    <Text style={[styles.assessmentText, { color: scoreColor }]}>{data.appAssessment}</Text>
-                </View>
                 <Text style={styles.modalBodyText}>{data.overallAnalysis}</Text>
             </DetailModal>
 

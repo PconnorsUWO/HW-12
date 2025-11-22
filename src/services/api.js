@@ -2,11 +2,7 @@ import { Platform } from 'react-native';
 
 // Option 1: Use local IP (recommended - no tunnel needed!)
 // Make sure your phone and computer are on the same WiFi network
-const API_URL = 'http://172.30.54.155:5001';
-
-// Option 2: Use localtunnel (if you need external access)
-// Run: npx localtunnel --port 5001
-// const API_URL = 'https://bright-apples-relate.loca.lt';
+const API_URL = 'https://lowliest-bulah-winglike.ngrok-free.dev';
 
 // Option 3: Use ngrok (more stable than localtunnel)
 // Run: npx ngrok http 5001

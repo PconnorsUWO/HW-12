@@ -46,6 +46,42 @@ def analyze_image():
                 'details': error_details
             }), 500
 
+@app.route('/news', methods=['GET'])
+def get_news():
+    try:
+        api_key = os.getenv("NEWS_API_KEY")
+        if not api_key:
+            return jsonify({'error': 'NEWS_API_KEY not found'}), 500
+
+        # Fetch news about nutrition and food science
+        url = "https://newsapi.org/v2/everything"
+        
+        # Credible domains for health research
+        domains = "sciencedaily.com,medicalnewstoday.com,nature.com,scientificamerican.com,mayoclinic.org,nih.gov,eurekalert.org,healthline.com,webmd.com"
+        
+        # Focus on ingredients, additives, and specific health impacts
+        params = {
+            'q': '(ingredient OR additive OR "food compound" OR caffeine OR sugar OR sweetener OR preservative) AND (health OR disease OR cancer OR heart OR metabolic OR toxicity) AND (study OR research)',
+            'domains': domains,
+            'language': 'en',
+            'sortBy': 'publishedAt',
+            'pageSize': 10,
+            'apiKey': api_key
+        }
+        
+        import requests
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        if data.get('status') != 'ok':
+            return jsonify({'error': data.get('message', 'Failed to fetch news')}), 500
+            
+        return jsonify(data['articles'])
+
+    except Exception as e:
+        print(f"NEWS ERROR: {e}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Run on 0.0.0.0 to be accessible from local network (e.g. phone)
     app.run(host='0.0.0.0', port=5001, debug=True)

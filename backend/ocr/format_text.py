@@ -2,7 +2,7 @@ import os
 import json
 from typing import Optional, Dict, Any
 from google import genai
-from google.genai import types  # Import types for configuration
+from google.genai import types  
 
 DEFAULT_GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 
@@ -54,7 +54,6 @@ def extract_ingredients(
         )
     )
 
-    # Response processing
     try:
         text = response.text
         if not text:
@@ -76,7 +75,6 @@ if __name__ == "__main__":
     Ingrédients : Sucre, Sel, Arôme naturel (vanille), Lait en poudre.
     """
 
-    # If running via command line pipe, read stdin, otherwise use sample
     if not sys.stdin.isatty():
         inp = sys.stdin.read()
     else:

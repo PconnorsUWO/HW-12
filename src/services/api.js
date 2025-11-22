@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 
 // Option 1: Use local IP (recommended - no tunnel needed!)
 // Make sure your phone and computer are on the same WiFi network
-const API_URL = 'http://172.30.54.155:5001';
+const API_URL = 'https://kindless-nonimmune-candyce.ngrok-free.dev';
 
 // Option 2: Use localtunnel (if you need external access)
 // Run: npx localtunnel --port 5001

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, AlertTriangle, XCircle, BookOpen, Activity, ChevronRight, List, ShieldAlert, Link as LinkIcon, FileText } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { COLORS, SPACING } from '../constants/theme';
+import { MODAL_TYPES, SCORE_THRESHOLDS, CARD_TITLES, LABELS, ERROR_MESSAGES, LOADING_MESSAGES, EMPTY_STATES, UI_TEXT } from '../constants/types';
 import { uploadImage } from '../services/api';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -40,7 +41,7 @@ const InfoCard = ({ title, icon: Icon, color, onPress, delay = 0 }) => {
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             <TouchableOpacity style={styles.infoCard} onPress={handlePress} activeOpacity={0.7}>
                 <View style={[styles.iconContainer, { backgroundColor: color }]}>
-                    <Icon size={24} color="#000" />
+                    <Icon size={24} color={COLORS.black} />
                 </View>
                 <Text style={styles.cardMainTitle}>{title}</Text>
                 <ChevronRight size={20} color={COLORS.textSecondary} />
@@ -129,7 +130,7 @@ export default function ResultsScreen({ route, navigation }) {
                 setData(analysisData);
             } catch (err) {
                 console.error(err);
-                setError("Failed to analyze image. Make sure the server is running.");
+                setError(ERROR_MESSAGES.ANALYSIS_FAILED);
             } finally {
                 Animated.timing(progress, {
                     toValue: 1,
@@ -145,8 +146,8 @@ export default function ResultsScreen({ route, navigation }) {
     }, [imageUri]);
 
     const getScoreColor = (score) => {
-        if (score >= 80) return COLORS.success;
-        if (score >= 50) return COLORS.warning;
+        if (score >= SCORE_THRESHOLDS.HIGH) return COLORS.success;
+        if (score >= SCORE_THRESHOLDS.MEDIUM) return COLORS.warning;
         return COLORS.danger;
     };
 
@@ -162,16 +163,16 @@ export default function ResultsScreen({ route, navigation }) {
                 <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={20} />
                 <View style={[styles.header, { paddingTop: insets.top + SPACING.s }]}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <ArrowLeft size={24} color="#FFF" />
+                        <ArrowLeft size={24} color={COLORS.white} />
                     </TouchableOpacity>
                 </View>
                 <View style={styles.loadingContainer}>
-                    <Text style={styles.loadingText}>Analyzing Ingredients...</Text>
-                    <Text style={styles.loadingSubText}>Identifying additives & health risks</Text>
+                    <Text style={styles.loadingText}>{LOADING_MESSAGES.ANALYZING}</Text>
+                    <Text style={styles.loadingSubText}>{LOADING_MESSAGES.IDENTIFYING}</Text>
                     <View style={styles.progressBarContainer}>
                         <Animated.View style={[styles.progressBarFill, { width }]} />
                     </View>
-                    <Text style={styles.loadingPercent}>Scanning...</Text>
+                    <Text style={styles.loadingPercent}>{LOADING_MESSAGES.SCANNING}</Text>
                 </View>
             </View>
         );
@@ -183,12 +184,12 @@ export default function ResultsScreen({ route, navigation }) {
                 <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={20} />
                 <View style={[styles.header, { paddingTop: insets.top + SPACING.s }]}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <ArrowLeft size={24} color="#FFF" />
+                        <ArrowLeft size={24} color={COLORS.white} />
                     </TouchableOpacity>
                 </View>
                 <View style={styles.loadingContainer}>
-                    <Text style={styles.loadingText}>Error</Text>
-                    <Text style={styles.loadingSubText}>{error || "No data received"}</Text>
+                    <Text style={styles.loadingText}>{UI_TEXT.ERROR}</Text>
+                    <Text style={styles.loadingSubText}>{error || ERROR_MESSAGES.NO_DATA}</Text>
                 </View>
             </View>
         );
@@ -202,7 +203,7 @@ export default function ResultsScreen({ route, navigation }) {
 
             <View style={[styles.header, { paddingTop: insets.top + SPACING.s }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <ArrowLeft size={24} color="#FFF" />
+                    <ArrowLeft size={24} color={COLORS.white} />
                 </TouchableOpacity>
             </View>
 
@@ -215,7 +216,7 @@ export default function ResultsScreen({ route, navigation }) {
                         <Text style={[styles.scoreValue, { color: scoreColor }]}>{data.overallWeightedHealthScore}</Text>
                     </View>
                     <View style={styles.scoreTextContainer}>
-                        <Text style={styles.scoreLabel}>Health Score</Text>
+                        <Text style={styles.scoreLabel}>{CARD_TITLES.HEALTH_SCORE}</Text>
                     </View>
                 </View>
 
@@ -224,47 +225,47 @@ export default function ResultsScreen({ route, navigation }) {
 
                     {/* 1. Overall Analysis */}
                     <InfoCard
-                        title="Overall Analysis"
+                        title={CARD_TITLES.OVERALL_ANALYSIS}
                         icon={FileText}
                         color={scoreColor}
                         delay={0}
-                        onPress={() => setActiveModal('analysis')}
+                        onPress={() => setActiveModal(MODAL_TYPES.ANALYSIS)}
                     />
 
                     {/* 2. Ingredients List */}
                     <InfoCard
-                        title="Ingredients List"
+                        title={CARD_TITLES.INGREDIENTS_LIST}
                         icon={List}
                         color={COLORS.primary}
                         delay={100}
-                        onPress={() => setActiveModal('ingredients')}
+                        onPress={() => setActiveModal(MODAL_TYPES.INGREDIENTS)}
                     />
 
                     {/* 3. Potentially Harmful Components */}
                     <InfoCard
-                        title="Harmful Components"
+                        title={CARD_TITLES.HARMFUL_COMPONENTS}
                         icon={ShieldAlert}
                         color={COLORS.danger}
                         delay={200}
-                        onPress={() => setActiveModal('harmful')}
+                        onPress={() => setActiveModal(MODAL_TYPES.HARMFUL)}
                     />
 
                     {/* 4. Potential Side Effects */}
                     <InfoCard
-                        title="Potential Side Effects"
+                        title={CARD_TITLES.POTENTIAL_SIDE_EFFECTS}
                         icon={AlertTriangle}
                         color={COLORS.warning}
                         delay={300}
-                        onPress={() => setActiveModal('effects')}
+                        onPress={() => setActiveModal(MODAL_TYPES.EFFECTS)}
                     />
 
-                    {/* . Scholarly Sources */}
+                    {/* 5. Scholarly Sources */}
                     <InfoCard
-                        title="Scholarly Sources"
+                        title={CARD_TITLES.SCHOLARLY_SOURCES}
                         icon={BookOpen}
                         color={COLORS.secondary}
                         delay={500}
-                        onPress={() => setActiveModal('sources')}
+                        onPress={() => setActiveModal(MODAL_TYPES.SOURCES)}
                     />
                 </View>
             </ScrollView>
@@ -273,9 +274,9 @@ export default function ResultsScreen({ route, navigation }) {
 
             {/* Overall Analysis Modal */}
             <DetailModal
-                visible={activeModal === 'analysis'}
+                visible={activeModal === MODAL_TYPES.ANALYSIS}
                 onClose={() => setActiveModal(null)}
-                title="Overall Analysis"
+                title={CARD_TITLES.OVERALL_ANALYSIS}
                 color={scoreColor}
                 icon={FileText}
             >
@@ -284,9 +285,9 @@ export default function ResultsScreen({ route, navigation }) {
 
             {/* Ingredients Modal */}
             <DetailModal
-                visible={activeModal === 'ingredients'}
+                visible={activeModal === MODAL_TYPES.INGREDIENTS}
                 onClose={() => setActiveModal(null)}
-                title="Ingredients List"
+                title={CARD_TITLES.INGREDIENTS_LIST}
                 color={COLORS.primary}
                 icon={List}
             >
@@ -300,20 +301,20 @@ export default function ResultsScreen({ route, navigation }) {
 
             {/* Harmful Components Modal */}
             <DetailModal
-                visible={activeModal === 'harmful'}
+                visible={activeModal === MODAL_TYPES.HARMFUL}
                 onClose={() => setActiveModal(null)}
-                title="Harmful Components"
+                title={CARD_TITLES.HARMFUL_COMPONENTS}
                 color={COLORS.danger}
                 icon={ShieldAlert}
             >
                 {(!data.harmfulComponents || data.harmfulComponents.length === 0) ? (
-                    <Text style={styles.modalBodyText}>No major harmful components detected.</Text>
+                    <Text style={styles.modalBodyText}>{EMPTY_STATES.NO_HARMFUL_COMPONENTS}</Text>
                 ) : (
                     data.harmfulComponents.map((item, index) => (
                         <View key={index} style={styles.card}>
                             <Text style={styles.cardTitle}>{item.name}</Text>
                             <Text style={styles.cardBody}>{item.concern}</Text>
-                            <Text style={styles.cardLabel}>Severity: {item.severity}</Text>
+                            <Text style={styles.cardLabel}>{LABELS.SEVERITY} {item.severity}</Text>
                         </View>
                     ))
                 )}
@@ -321,19 +322,19 @@ export default function ResultsScreen({ route, navigation }) {
 
             {/* Side Effects Modal */}
             <DetailModal
-                visible={activeModal === 'effects'}
+                visible={activeModal === MODAL_TYPES.EFFECTS}
                 onClose={() => setActiveModal(null)}
-                title="Potential Side Effects"
+                title={CARD_TITLES.POTENTIAL_SIDE_EFFECTS}
                 color={COLORS.warning}
                 icon={AlertTriangle}
             >
                 {(!data.sideEffects || data.sideEffects.length === 0) ? (
-                    <Text style={styles.modalBodyText}>No significant side effects reported.</Text>
+                    <Text style={styles.modalBodyText}>{EMPTY_STATES.NO_SIDE_EFFECTS}</Text>
                 ) : (
                     data.sideEffects.map((item, index) => (
                         <View key={index} style={styles.listItem}>
                             <Text style={styles.listItemTitle}>{item.effect}</Text>
-                            <Text style={styles.listItemText}>Frequency: {item.frequency}</Text>
+                            <Text style={styles.listItemText}>{LABELS.FREQUENCY} {item.frequency}</Text>
                         </View>
                     ))
                 )}
@@ -341,20 +342,20 @@ export default function ResultsScreen({ route, navigation }) {
 
             {/* Combos Modal */}
             <DetailModal
-                visible={activeModal === 'combos'}
+                visible={activeModal === MODAL_TYPES.COMBOS}
                 onClose={() => setActiveModal(null)}
-                title="Harmful Combinations"
+                title={CARD_TITLES.HARMFUL_COMBINATIONS}
                 color={COLORS.danger}
                 icon={XCircle}
             >
                 {(!data.harmfulCombinations || data.harmfulCombinations.length === 0) ? (
-                    <Text style={styles.modalBodyText}>No harmful combinations found.</Text>
+                    <Text style={styles.modalBodyText}>{EMPTY_STATES.NO_COMBINATIONS}</Text>
                 ) : (
                     data.harmfulCombinations.map((combo, index) => (
                         <View key={index} style={styles.card}>
                             <Text style={styles.cardTitle}>Combo #{index + 1}</Text>
                             <Text style={styles.cardBody}>{combo.combo}</Text>
-                            <Text style={styles.cardLabel}>Risk:</Text>
+                            <Text style={styles.cardLabel}>{LABELS.RISK}</Text>
                             <Text style={styles.cardRisk}>{combo.risk}</Text>
                         </View>
                     ))
@@ -363,20 +364,20 @@ export default function ResultsScreen({ route, navigation }) {
 
             {/* Sources Modal */}
             <DetailModal
-                visible={activeModal === 'sources'}
+                visible={activeModal === MODAL_TYPES.SOURCES}
                 onClose={() => setActiveModal(null)}
-                title="Scholarly Sources"
+                title={CARD_TITLES.SCHOLARLY_SOURCES}
                 color={COLORS.secondary}
                 icon={BookOpen}
             >
                 {(!data.scholarlySources || data.scholarlySources.length === 0) ? (
-                    <Text style={styles.modalBodyText}>No specific sources cited.</Text>
+                    <Text style={styles.modalBodyText}>{EMPTY_STATES.NO_SOURCES}</Text>
                 ) : (
                     data.scholarlySources.map((source, index) => (
                         <TouchableOpacity key={index} style={styles.card} onPress={() => source.url && Linking.openURL(source.url)}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <LinkIcon size={16} color={COLORS.primary} />
-                                <Text style={[styles.cardTitle, { color: COLORS.primary, marginBottom: 0 }]}>Source #{index + 1}</Text>
+                                <Text style={[styles.cardTitle, { color: COLORS.primary, marginBottom: 0 }]}>{LABELS.SOURCE} {index + 1}</Text>
                             </View>
                             <Text style={[styles.cardBody, { marginTop: 8 }]}>{source.citation}</Text>
                         </TouchableOpacity>
@@ -391,7 +392,7 @@ export default function ResultsScreen({ route, navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000',
+        backgroundColor: COLORS.black,
     },
     backgroundImage: {
         ...StyleSheet.absoluteFillObject,
@@ -408,7 +409,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: COLORS.overlayMedium,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -429,7 +430,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: SPACING.s,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: COLORS.overlayMedium,
     },
     scoreValue: {
         fontSize: 36,
@@ -456,11 +457,11 @@ const styles = StyleSheet.create({
     infoCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        backgroundColor: COLORS.cardBackground,
         borderRadius: 20,
         padding: SPACING.m,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderColor: COLORS.borderLight,
     },
     iconContainer: {
         width: 48,
@@ -472,7 +473,7 @@ const styles = StyleSheet.create({
     },
     cardMainTitle: {
         flex: 1,
-        color: '#FFF',
+        color: COLORS.white,
         fontSize: 18,
         fontWeight: '600',
     },
@@ -483,7 +484,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     loadingText: {
-        color: '#FFF',
+        color: COLORS.white,
         fontSize: 24,
         fontWeight: '700',
         marginBottom: SPACING.xs,
@@ -497,7 +498,7 @@ const styles = StyleSheet.create({
     progressBarContainer: {
         width: '80%',
         height: 6,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: COLORS.borderLight,
         borderRadius: 3,
         overflow: 'hidden',
         marginBottom: SPACING.s,
@@ -525,7 +526,7 @@ const styles = StyleSheet.create({
     },
     modalBackdrop: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: COLORS.overlayDark,
     },
     modalContent: {
         backgroundColor: COLORS.surface,
@@ -546,7 +547,7 @@ const styles = StyleSheet.create({
     modalTitle: {
         fontSize: 24,
         fontWeight: '800',
-        color: '#000',
+        color: COLORS.black,
         flex: 1,
         marginLeft: SPACING.s,
     },
@@ -581,7 +582,7 @@ const styles = StyleSheet.create({
         lineHeight: 22,
     },
     card: {
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        backgroundColor: COLORS.cardBackgroundLight,
         borderRadius: 16,
         padding: SPACING.m,
         marginBottom: SPACING.m,

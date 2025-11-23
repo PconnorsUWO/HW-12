@@ -5,44 +5,41 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { Zap, ZapOff, Image as ImageIcon, Settings, User } from 'lucide-react-native';
 import { COLORS, SPACING } from '../constants/theme';
+import { FLASH_MODES, ROUTES, CAMERA_FACING, ERROR_MESSAGES, UI_TEXT, ANIMATION_DURATION, IMAGE_PICKER } from '../constants/types';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
     const [permission, requestPermission] = useCameraPermissions();
-    const [flash, setFlash] = useState('off');
+    const [flash, setFlash] = useState(FLASH_MODES.OFF);
     const [loading, setLoading] = useState(false);
-    const [isFocused, setIsFocused] = useState(false); // New state for green lock-on
+    const [isFocused, setIsFocused] = useState(false);
     const cameraRef = useRef(null);
 
-    // Simulate "Lock-on" effect
     useEffect(() => {
         const interval = setInterval(() => {
-            // Toggle focus state to simulate finding an object
             setIsFocused(prev => !prev);
-        }, 3000);
+        }, ANIMATION_DURATION.FOCUS_INTERVAL);
         return () => clearInterval(interval);
     }, []);
 
     if (!permission) {
-        // Camera permissions are still loading.
         return <View />;
     }
 
     if (!permission.granted) {
-        // Camera permissions are not granted yet.
         return (
             <View style={styles.container}>
-                <Text style={{ color: '#fff' }}>No access to camera</Text>
+                <Text style={styles.permissionText}>{ERROR_MESSAGES.NO_CAMERA_ACCESS}</Text>
                 <TouchableOpacity onPress={requestPermission} style={styles.button}>
-                    <Text style={styles.text}>Grant Permission</Text>
+                    <Text style={styles.text}>{UI_TEXT.GRANT_PERMISSION}</Text>
                 </TouchableOpacity>
             </View>
         );
     }
 
     const toggleFlash = () => {
-        setFlash(current => (current === 'off' ? 'on' : 'off'));
+        setFlash(current => (current === FLASH_MODES.OFF ? FLASH_MODES.ON : FLASH_MODES.OFF));
     };
 
     const takePicture = async () => {
@@ -51,11 +48,11 @@ export default function HomeScreen({ navigation }) {
             try {
                 const photo = await cameraRef.current.takePictureAsync();
                 setLoading(false);
-                navigation.navigate('Results', { imageUri: photo.uri });
+                navigation.navigate(ROUTES.RESULTS, { imageUri: photo.uri });
             } catch (error) {
                 console.error(error);
                 setLoading(false);
-                Alert.alert('Error', 'Failed to take picture');
+                Alert.alert(UI_TEXT.ERROR, ERROR_MESSAGES.PICTURE_FAILED);
             }
         }
     };
@@ -64,23 +61,22 @@ export default function HomeScreen({ navigation }) {
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
-            aspect: [4, 3],
-            quality: 1,
+            aspect: IMAGE_PICKER.ASPECT_RATIO,
+            quality: IMAGE_PICKER.QUALITY,
         });
 
         if (!result.canceled) {
-            navigation.navigate('Results', { imageUri: result.assets[0].uri });
+            navigation.navigate(ROUTES.RESULTS, { imageUri: result.assets[0].uri });
         }
     };
 
-    // Dynamic Color based on focus state
-    const focusColor = isFocused ? '#4ADE80' : 'rgba(255, 255, 255, 0.6)'; // Green or Semi-transparent White
+    const focusColor = isFocused ? COLORS.focus : COLORS.overlayLight; 
 
     return (
         <SafeAreaView style={styles.container}>
             <CameraView
                 style={styles.camera}
-                facing="back"
+                facing={CAMERA_FACING.BACK}
                 flash={flash}
                 ref={cameraRef}
             >
@@ -88,10 +84,10 @@ export default function HomeScreen({ navigation }) {
                     {/* Top Controls */}
                     <View style={styles.topControls}>
                         <TouchableOpacity onPress={toggleFlash} style={styles.iconButton}>
-                            {flash === 'on' ? <Zap size={24} color="#FFF" /> : <ZapOff size={24} color="#FFF" />}
+                            {flash === FLASH_MODES.ON ? <Zap size={24} color={COLORS.white} /> : <ZapOff size={24} color={COLORS.white} />}
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.iconButton}>
-                            <User size={24} color="#FFF" />
+                            <User size={24} color={COLORS.white} />
                         </TouchableOpacity>
                     </View>
 
@@ -106,14 +102,14 @@ export default function HomeScreen({ navigation }) {
                             <View style={[styles.corner, styles.bottomRight, { borderColor: focusColor }]} />
                         </View>
                         {isFocused && (
-                            <Text style={[styles.focusLabel, { color: focusColor }]}>DETECTED</Text>
+                            <Text style={[styles.focusLabel, { color: focusColor }]}>{UI_TEXT.DETECTED}</Text>
                         )}
                     </View>
 
                     {/* Bottom Controls */}
                     <View style={styles.bottomControls}>
                         <TouchableOpacity onPress={pickImage} style={styles.galleryButton}>
-                            <ImageIcon size={28} color="#FFF" />
+                            <ImageIcon size={28} color={COLORS.white} />
                         </TouchableOpacity>
 
                         <TouchableOpacity onPress={takePicture} style={styles.captureButton}>
@@ -121,7 +117,7 @@ export default function HomeScreen({ navigation }) {
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.iconButton}>
-                            <Settings size={24} color="#FFF" />
+                            <Settings size={24} color={COLORS.white} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -133,7 +129,7 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000',
+        backgroundColor: COLORS.black,
     },
     camera: {
         flex: 1,
@@ -154,7 +150,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: 'rgba(0,0,0,0.3)',
+        backgroundColor: COLORS.overlay,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -204,7 +200,7 @@ const styles = StyleSheet.create({
         height: 80,
         borderRadius: 40,
         borderWidth: 6,
-        borderColor: '#FFF',
+        borderColor: COLORS.white,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -212,12 +208,15 @@ const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: 32,
-        backgroundColor: '#FFF',
+        backgroundColor: COLORS.white,
     },
     text: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: 'white',
+        color: COLORS.text,
+    },
+    permissionText: {
+        color: COLORS.text,
     },
     button: {
         flex: 1,

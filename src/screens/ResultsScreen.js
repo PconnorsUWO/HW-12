@@ -6,6 +6,8 @@ import * as Haptics from 'expo-haptics';
 import { COLORS, SPACING } from '../constants/theme';
 import { MODAL_TYPES, SCORE_THRESHOLDS, CARD_TITLES, LABELS, ERROR_MESSAGES, LOADING_MESSAGES, EMPTY_STATES, UI_TEXT } from '../constants/types';
 import { uploadImage } from '../services/api';
+import IngredientPopup from '../components/IngredientPopup';
+import sampleIngredientData from '../data/sampleIngredient.json';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -111,6 +113,34 @@ export default function ResultsScreen({ route, navigation }) {
 
     // Modal State
     const [activeModal, setActiveModal] = useState(null);
+
+    // Ingredient Popup State
+    const [selectedIngredient, setSelectedIngredient] = useState(null);
+    const [showIngredientPopup, setShowIngredientPopup] = useState(false);
+
+    const handleIngredientPress = (ingredientName) => {
+        // Close the current modal first to avoid stacking issues (which causes frozen UI on iOS)
+        setActiveModal(null);
+
+        // For demonstration, we'll use the sample Caffeine data if the user clicks "Caffeine"
+        let dataToShow = sampleIngredientData;
+        if (ingredientName.toLowerCase().includes('caffeine')) {
+            dataToShow = sampleIngredientData;
+        } else {
+            // Fallback: use sample data but update the name
+            dataToShow = {
+                ...sampleIngredientData,
+                name: ingredientName,
+            };
+        }
+
+        setSelectedIngredient(dataToShow);
+
+        // Open popup after a short delay to allow the first modal to unmount/animate out
+        setTimeout(() => {
+            setShowIngredientPopup(true);
+        }, 300);
+    };
 
     useEffect(() => {
         // Start Loading Animation
@@ -292,10 +322,17 @@ export default function ResultsScreen({ route, navigation }) {
                 icon={List}
             >
                 {data.ingredients && data.ingredients.map((item, index) => (
-                    <View key={index} style={styles.listItem}>
-                        <Text style={styles.listItemTitle}>{item.name}</Text>
+                    <TouchableOpacity
+                        key={index}
+                        style={styles.listItem}
+                        onPress={() => handleIngredientPress(item.name)}
+                    >
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={styles.listItemTitle}>{item.name}</Text>
+                            <ChevronRight size={16} color={COLORS.textSecondary} />
+                        </View>
                         <Text style={styles.listItemText}>{item.function}</Text>
-                    </View>
+                    </TouchableOpacity>
                 ))}
             </DetailModal>
 
@@ -384,6 +421,13 @@ export default function ResultsScreen({ route, navigation }) {
                     ))
                 )}
             </DetailModal>
+
+            {/* Reusable Ingredient Popup */}
+            <IngredientPopup
+                visible={showIngredientPopup}
+                onClose={() => setShowIngredientPopup(false)}
+                data={selectedIngredient}
+            />
 
         </View>
     );

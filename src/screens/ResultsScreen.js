@@ -374,12 +374,6 @@ export default function ResultsScreen({ route, navigation }) {
                 icon={List}
             >
                 {data.ingredients && data.ingredients.map((item, index) => (
-
-                    <View key={index} style={styles.listItem}>
-                        <View style={styles.listItemHeader}>
-                            <View style={styles.bullet} />
-                            <Text style={styles.listItemTitle}>{item.name}</Text>
-
                     <TouchableOpacity
                         key={index}
                         style={styles.listItem}
@@ -388,7 +382,6 @@ export default function ResultsScreen({ route, navigation }) {
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Text style={styles.listItemTitle}>{item.name}</Text>
                             <ChevronRight size={16} color={COLORS.textSecondary} />
-
                         </View>
                         <Text style={styles.listItemText}>{item.function}</Text>
                     </TouchableOpacity>

@@ -20,38 +20,14 @@ You will receive a JSON object from the Google Vision API containing OCR data (t
 Strictly output a single JSON object matching the provided schema.
 Do not include any markdown formatting (like ```json ... ```) in the response, just the raw JSON object.
 
-**HEALTH SCORE (REPEATABLE RUBRIC):**
-Start from Score = 100. Apply penalties in the exact order below. The final score must be between 0 and 100 (round to nearest integer).
-
-1.  **Serious Safety Risks (per ingredient)**:
-    -   Known serious risk at typical supplement doses (e.g. strong liver toxicity, strong cardiovascular risk, banned substances): -25 points each, max -50 total.
-    -   Known moderate risk (requires caution, but not typically banned): -10 points each, max -30 total.
-
-2.  **Dosage Above Common Safety Limits (per ingredient)**:
-    -   If an ingredient’s dose is >100% and <=150% of a widely accepted upper safe limit: -5.
-    -   If >150% and <=200% of upper limit: -10.
-    -   If >200% of upper limit: -20.
-    -   **Special case for caffeine**: Total caffeine >400 mg/day equivalent: additional -15 (on top of the above, if applicable).
-
-3.  **Novel / Poorly Studied Ingredients (per ingredient)**:
-    -   Well-studied ingredients with good human data: 0 penalty.
-    -   Limited human data / mostly animal or in vitro data: -3.
-    -   Very novel, proprietary blends, or ingredients with unclear identity or almost no data: -7.
-
-4.  **Formulation Concerns**:
-    -   "Proprietary blend" where individual doses are not disclosed and includes stimulants or potent actives: -10.
-    -   Use of multiple overlapping stimulants (e.g. caffeine + synephrine + yohimbine, etc.): -10.
-    -   Excessive use of artificial colors, sweeteners, or fillers (judgement based on typical supplement norms): -3 to -5 total.
-
-5.  **Ingredient Interactions**:
-    -   Potentially dangerous interaction between ingredients (e.g. multiple blood-pressure-raising agents, multiple anticoagulants, strong stimulant stacks): -10 per distinct high-risk combination, max -20.
-
-6.  **Uncertainty Buffer**:
-    -   If many ingredients have unclear doses or limited safety data (e.g. >5 such ingredients): apply an additional -5 to -10 based on overall uncertainty.
-
-7.  **Clamp Score**:
-    -   If the score is >100, set to 100.
-    -   If the score is <0, set to 0.
+**HEALTH SCORE CALCULATION (REPEATABLE RUBRIC):**
+Start at 100. Deduct points strictly as follows (min 0, max 100):
+Safety Risks: -25 (Serious/Banned), -10 (Moderate).
+Dosage: -5 (>100 limit), -10 (>150%), -20 (>200%). Caffeine >400mg: Extra -15.
+Novelty: -3 (Limited data), -7 (Very novel/Unknown).
+Formulation: -10 (Proprietary blends with stimulants), -10 (Stacking stimulants), -3 (Excessive additives).
+Interactions: -10 per dangerous combo.
+Uncertainty: -5 to -10 if data is scarce.
 
 **IMPORTANT INSTRUCTIONS:**
 -   **Treat Ingredients as Stable Across Scans**: If multiple OCR scans of the same product produce slightly different text (e.g. minor spelling differences or line breaks), assume they represent the same ingredient list whenever the ingredient names and doses are effectively the same. Do not change the health score for trivial OCR differences.
@@ -63,11 +39,11 @@ Start from Score = 100. Apply penalties in the exact order below. The final scor
 -   **Harmful Components**: Risks, dosage concerns, purity.
 -   **Side Effects**: Severity and frequency.
 -   **Combinations**: Dangerous interactions.
--   **Sources**: Scholarly references.
+-   **Sources**: Scholarly references (based on ingredients use reputable sources i.e. examine.com).
 -   **Score**: Calculated based on the rubric above.
 """
 
-def _get_client(api_key: Optional[str] = None, model_name: str = "gemini-2.5-flash-lite", system_instruction: Optional[str] = None):
+def _get_client(api_key: Optional[str] = None, model_name: str = "gemini-2.5-flash", system_instruction: Optional[str] = None):
     key = api_key or DEFAULT_GEMINI_KEY
     if not key:
         raise RuntimeError(
@@ -81,7 +57,7 @@ def extract_ingredients(
     label_text: str,
     *,
     api_key: Optional[str] = None,
-    model_name: str = "gemini-2.5-flash-lite"
+    model_name: str = "gemini-2.5-flash"
 ) -> Dict[str, Any]:
 
     model = _get_client(api_key, model_name, system_instruction=SYSTEM_MESSAGE)

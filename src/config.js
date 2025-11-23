@@ -1,6 +1,6 @@
 // API Configuration
 // Update this URL to match your ngrok tunnel or local setup
-export const API_URL = 'https://15303c4cf9cb.ngrok-free.app';
+export const API_URL = 'https://5ceb052e4879.ngrok-free.app';
 
 // To use your ngrok URL:
 // 1. Start ngrok: npx ngrok http 5001

@@ -1,0 +1,13 @@
+node_modules
+env
+.env
+uploads
+.DS_Store
+.vscode
+
+backend/ocr/__pycache__/
+backend/ocr/*.pyc
+
+backend/scrape/__pycache__/
+backend/scrape/*.pyc
+

@@ -24,7 +24,7 @@ export function BottomNav({ activeTab, onTabChange }) {
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
-          
+
           return (
             // Replaced <button> with <Pressable> for interactive elements
             <Pressable

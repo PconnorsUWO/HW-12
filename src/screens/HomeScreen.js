@@ -70,7 +70,7 @@ export default function HomeScreen({ navigation }) {
         }
     };
 
-    const focusColor = isFocused ? COLORS.focus : COLORS.overlayLight; 
+    const focusColor = isFocused ? COLORS.focus : COLORS.overlayLight;
 
     return (
         <SafeAreaView style={styles.container}>

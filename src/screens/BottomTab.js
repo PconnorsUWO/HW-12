@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 // Assuming you have installed lucide-react-native for these icons
 import { Apple, FileText, BookOpen } from 'lucide-react-native';
+import { COLORS, SPACING } from '../constants/theme';
+import { ROUTES } from '../constants/types';
 
 /**
  * Note: The component structure is kept as a functional component,
@@ -9,12 +11,39 @@ import { Apple, FileText, BookOpen } from 'lucide-react-native';
  * You will need to rely on prop validation or runtime checks if not using TypeScript.
  */
 
-export function BottomNav({ activeTab, onTabChange }) {
+export function BottomNav({ activeTab, onTabChange, navigation }) {
   // Define the structure of your navigation tabs
   const tabs = [
-    { id: 'scan-food', label: 'Scan food', icon: Apple, color: '#b8e6b8', activeColor: '#9dd99d' },
-    { id: 'food-label', label: 'Food label', icon: FileText, color: '#ffc4d6', activeColor: '#ffb3cc' },
-    { id: 'library', label: 'Library', icon: BookOpen, color: '#b8d4f0', activeColor: '#a3c9ed' },
+    { 
+      id: 'scan-food', 
+      label: 'Scan food', 
+      icon: Apple, 
+      color: COLORS.cardBackground, 
+      activeColor: COLORS.success,
+      onPress: () => onTabChange && onTabChange('scan-food')
+    },
+    { 
+      id: 'food-label', 
+      label: 'Food label', 
+      icon: FileText, 
+      color: COLORS.cardBackground, 
+      activeColor: COLORS.warning,
+      onPress: () => onTabChange && onTabChange('food-label')
+    },
+    { 
+      id: 'library', 
+      label: 'Library', 
+      icon: BookOpen, 
+      color: COLORS.cardBackground, 
+      activeColor: COLORS.primary,
+      onPress: () => {
+        if (navigation) {
+          navigation.navigate(ROUTES.INGREDIENTS_LIBRARY);
+        } else if (onTabChange) {
+          onTabChange('library');
+        }
+      }
+    },
   ];
 
   return (
@@ -29,7 +58,7 @@ export function BottomNav({ activeTab, onTabChange }) {
             // Replaced <button> with <Pressable> for interactive elements
             <Pressable
               key={tab.id}
-              onPress={() => onTabChange(tab.id)}
+              onPress={tab.onPress}
               // Apply styles based on active state and tab color
               style={({ pressed }) => [
                 styles.tabButton,
@@ -40,9 +69,9 @@ export function BottomNav({ activeTab, onTabChange }) {
               ]}
             >
               {/* Lucide icons are now imported from lucide-react-native and take a 'color' prop */}
-              <Icon size={24} color="#333333" />
+              <Icon size={24} color={isActive ? COLORS.black : COLORS.textSecondary} />
               {/* Replaced <span> with <Text> */}
-              <Text style={styles.tabLabel}>
+              <Text style={[styles.tabLabel, { color: isActive ? COLORS.black : COLORS.textSecondary }]}>
                 {tab.label}
               </Text>
             </Pressable>
@@ -61,8 +90,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 16, // px-4
-    paddingBottom: 24,    // pb-6
+    paddingHorizontal: SPACING.m,
+    paddingBottom: SPACING.l,
     zIndex: 30,
   },
   // This replaces the flex container for the tabs
@@ -70,7 +99,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12, // Replaces gap-3 (note: React Native gap support depends on version/Expo SDK)
+    gap: SPACING.s,
   },
   // Base style for the individual tab pressable area
   tabButton: {
@@ -81,11 +110,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     // Added transition-like properties
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 3.84,
     elevation: 5, // Android shadow
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
   },
   tabActive: {
     // scale-105 equivalent
@@ -97,7 +128,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 10, // text-xs
-    color: '#333333', // text-gray-800
-    marginTop: 4, // gap-2 (partial equivalent for space between icon and text)
+    marginTop: SPACING.xs,
+    fontWeight: '500',
   },
 });

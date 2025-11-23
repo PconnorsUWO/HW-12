@@ -1,0 +1,82 @@
+[
+    {
+        "id": "caffeine",
+        "name": "Caffeine",
+        "summary": "Caffeine is a stimulatory anti-sleep compound extracted from coffee beans. It is the most widely consumed psychoactive substance in the world.",
+        "tags": ["Stimulant", "Nootropic", "Performance Enhancer"],
+        "family": "Stimulants",
+        "evidenceMap": [
+            {
+                "effect": "Alertness",
+                "grade": "A",
+                "magnitude": "Strong",
+                "consistency": "Consistent",
+                "details": "Reliably increases wakefulness and reduces the perception of fatigue, especially in sleep-deprived states."
+            },
+            {
+                "effect": "Physical Performance",
+                "grade": "A",
+                "magnitude": "Moderate",
+                "consistency": "Consistent",
+                "details": "Improves power output and endurance. Effective for both aerobic and anaerobic exercise."
+            }
+        ],
+        "dosage": {
+            "instruction": "To supplement for physical performance, take 3–6 mg/kg of body weight. For general wakefulness, 100–200 mg is standard.",
+            "timing": "Take 30–60 minutes before the desired effect (e.g., workout or study session). Avoid within 6 hours of sleep.",
+            "notes": "Tolerance builds up quickly. Cycling off for a few days can restore sensitivity."
+        },
+        "citations": [
+            {
+                "id": 1,
+                "text": "Grgic J, et al. Wakefulness-promoting effects of caffeine. Nutrients. (2020)",
+                "link": "https://pubmed.ncbi.nlm.nih.gov/example1"
+            }
+        ]
+    },
+    {
+        "id": "creatine",
+        "name": "Creatine",
+        "summary": "Creatine is a naturally occurring compound that helps supply energy to muscle cells.",
+        "tags": ["Performance Enhancer", "Muscle Building"],
+        "family": "Performance Enhancers",
+        "evidenceMap": [
+            {
+                "effect": "Muscle Strength",
+                "grade": "A",
+                "magnitude": "Strong",
+                "consistency": "Consistent",
+                "details": "Significantly improves strength and power output in resistance training."
+            }
+        ],
+        "dosage": {
+            "instruction": "5g per day, typically taken post-workout or with meals.",
+            "timing": "Can be taken at any time, but post-workout may be optimal.",
+            "notes": "Loading phase of 20g/day for 5-7 days is optional."
+        },
+        "citations": []
+    },
+    {
+        "id": "omega3",
+        "name": "Omega-3",
+        "summary": "Essential fatty acids that support brain health and reduce inflammation.",
+        "tags": ["Brain Health", "Anti-inflammatory"],
+        "family": "Vitamins & Supplements",
+        "evidenceMap": [
+            {
+                "effect": "Brain Health",
+                "grade": "B",
+                "magnitude": "Moderate",
+                "consistency": "Consistent",
+                "details": "Supports cognitive function and may reduce risk of cognitive decline."
+            }
+        ],
+        "dosage": {
+            "instruction": "1-2g of EPA+DHA per day.",
+            "timing": "Can be taken with meals.",
+            "notes": "Fish oil supplements are a common source."
+        },
+        "citations": []
+    }
+]
+

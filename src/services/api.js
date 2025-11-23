@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 
 // Option 1: Use local IP (recommended - no tunnel needed!)
 // Make sure your phone and computer are on the same WiFi network
-const API_URL = 'https://d2e0dde568cb.ngrok-free.app/';
+const API_URL = 'https://84a87975c2d2.ngrok-free.app/';
 
 // Option 3: Use ngrok (more stable than localtunnel)
 // Run: npx ngrok http 5001

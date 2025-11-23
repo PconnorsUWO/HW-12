@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Zap, ZapOff, Image as ImageIcon, Settings, User } from 'lucide-react-native';
 import { COLORS, SPACING } from '../constants/theme';
 import { FLASH_MODES, ROUTES, CAMERA_FACING, ERROR_MESSAGES, UI_TEXT, ANIMATION_DURATION, IMAGE_PICKER } from '../constants/types';
+import { BottomNav } from './BottomTab';
 
 const { width } = Dimensions.get('window');
 
@@ -14,6 +15,7 @@ export default function HomeScreen({ navigation }) {
     const [flash, setFlash] = useState(FLASH_MODES.OFF);
     const [loading, setLoading] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
+    const [activeTab, setActiveTab] = useState('scan-food');
     const cameraRef = useRef(null);
 
     useEffect(() => {
@@ -122,6 +124,11 @@ export default function HomeScreen({ navigation }) {
                     </View>
                 </View>
             </CameraView>
+            <BottomNav 
+                activeTab={activeTab} 
+                onTabChange={setActiveTab}
+                navigation={navigation}
+            />
         </SafeAreaView>
     );
 }
@@ -187,7 +194,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: SPACING.xl,
-        paddingBottom: SPACING.xl * 1.5,
+        paddingBottom: SPACING.xl * 1.5 + 100, // Extra padding to account for BottomNav
     },
     galleryButton: {
         width: 50,

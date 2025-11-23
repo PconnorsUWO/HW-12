@@ -9,6 +9,7 @@ export const ROUTES = {
     RESULTS: 'Results',
     HOME: 'Home',
     WELCOME: 'Welcome',
+    INGREDIENTS_LIBRARY: 'IngredientsLibrary',
 };
 
 // Camera facing

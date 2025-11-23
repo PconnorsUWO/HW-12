@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Dimensions, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search } from 'lucide-react-native';
+import { Search, ArrowLeft } from 'lucide-react-native';
 import { COLORS, SPACING } from '../../constants/theme';
+import { ROUTES } from '../../constants/types';
 import IngredientPopup from './IngredientPopup';
 import MOCK_INGREDIENTS from './dummy_data.json';
 
@@ -111,8 +112,19 @@ export default function IngredientsLibraryScreen({ navigation }) {
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Ingredient Library</Text>
-                <Text style={styles.headerSubtitle}>Explore ingredients and their effects</Text>
+                <View style={styles.headerTop}>
+                    <TouchableOpacity 
+                        style={styles.backButton}
+                        onPress={() => navigation.navigate(ROUTES.HOME)}
+                        activeOpacity={0.7}
+                    >
+                        <ArrowLeft size={24} color={COLORS.text} />
+                    </TouchableOpacity>
+                    <View style={styles.headerTextContainer}>
+                        <Text style={styles.headerTitle}>Ingredient Library</Text>
+                        <Text style={styles.headerSubtitle}>Explore ingredients and their effects</Text>
+                    </View>
+                </View>
             </View>
 
             {/* Search Bar */}
@@ -195,6 +207,24 @@ const styles = StyleSheet.create({
     header: {
         padding: SPACING.l,
         paddingBottom: SPACING.m,
+    },
+    headerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.m,
+    },
+    backButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: COLORS.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    headerTextContainer: {
+        flex: 1,
     },
     headerTitle: {
         fontSize: 32,

@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ResultsScreen from './src/screens/ResultsScreen';
+import IngredientsDirectoryScreen from './src/screens/ingredients/IngredientsDirectoryScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { AuthService } from './src/services/auth';
 import { COLORS } from './src/constants/theme';
@@ -66,6 +67,7 @@ export default function App() {
           )}
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="Results" component={ResultsScreen} />
+          <Stack.Screen name="IngredientsDirectory" component={IngredientsDirectoryScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

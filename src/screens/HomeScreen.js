@@ -7,6 +7,7 @@ import { Zap, ZapOff, Image as ImageIcon, Settings, User, ScanLine } from 'lucid
 import { AuthService } from '../services/auth';
 import { COLORS, SPACING } from '../constants/theme';
 import { FLASH_MODES, ROUTES, CAMERA_FACING, ERROR_MESSAGES, UI_TEXT, ANIMATION_DURATION, IMAGE_PICKER } from '../constants/types';
+import BottomBar from '../components/BottomBar';
 
 const { width } = Dimensions.get('window');
 
@@ -160,6 +161,7 @@ export default function HomeScreen({ navigation }) {
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
+            <BottomBar navigation={navigation} />
         </View>
     );
 }
@@ -242,7 +244,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: SPACING.xl,
-        paddingBottom: SPACING.xl,
+        paddingBottom: 100, // Space for bottom bar (70px bar + 30px spacing)
     },
     galleryButton: {
         width: 50,

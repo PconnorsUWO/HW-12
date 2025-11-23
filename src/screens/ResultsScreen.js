@@ -10,9 +10,11 @@ import { uploadImage } from '../services/api';
 
 import { AllergyWarning } from '../components/AllergyWarning';
 import { AllergyService } from '../services/allergies';
+import BottomBar from '../components/BottomBar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import IngredientPopup from '../components/IngredientPopup';
-import sampleIngredientData from '../data/sampleIngredient.json';
+import ingredientsData from './ingredients/data.json';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -111,9 +113,9 @@ const DetailModal = ({ visible, onClose, title, color, children, icon: Icon }) =
 };
 
 export default function ResultsScreen({ route, navigation }) {
-    const { imageUri } = route.params;
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { imageUri, data: preloadedData } = route.params;
+    const [data, setData] = useState(preloadedData || null);
+    const [loading, setLoading] = useState(!preloadedData);
     const [error, setError] = useState(null);
     const insets = useSafeAreaInsets();
 
@@ -135,15 +137,27 @@ export default function ResultsScreen({ route, navigation }) {
         // Close the current modal first to avoid stacking issues (which causes frozen UI on iOS)
         setActiveModal(null);
 
-        // For demonstration, we'll use the sample Caffeine data if the user clicks "Caffeine"
-        let dataToShow = sampleIngredientData;
-        if (ingredientName.toLowerCase().includes('caffeine')) {
-            dataToShow = sampleIngredientData;
-        } else {
-            // Fallback: use sample data but update the name
+        // Search for the ingredient in the ingredients data by name (case-insensitive)
+        const foundIngredient = ingredientsData.find(ingredient => 
+            ingredient.name.toLowerCase() === ingredientName.toLowerCase()
+        );
+
+        // If found, use that ingredient's data; otherwise, create a minimal fallback
+        let dataToShow = foundIngredient;
+        if (!dataToShow) {
+            // Fallback: create a minimal ingredient object with just the name
             dataToShow = {
-                ...sampleIngredientData,
+                id: ingredientName.toLowerCase().replace(/\s+/g, '-'),
                 name: ingredientName,
+                summary: `Information about ${ingredientName} is not available in the database.`,
+                tags: ['Food Ingredient'],
+                evidenceMap: [],
+                dosage: {
+                    instruction: 'No specific dosage information available.',
+                    timing: 'N/A',
+                    notes: 'Please consult product labels and health professionals for specific guidance.'
+                },
+                citations: []
             };
         }
 
@@ -156,6 +170,15 @@ export default function ResultsScreen({ route, navigation }) {
     };
 
     useEffect(() => {
+        // If data is preloaded (from last scan), use it directly
+        if (preloadedData) {
+            setData(preloadedData);
+            setLoading(false);
+            loadUserAllergies(preloadedData);
+            return;
+        }
+
+        // Otherwise, fetch data from API
         // Start Loading Animation
         Animated.timing(progress, {
             toValue: 0.7,
@@ -171,6 +194,17 @@ export default function ResultsScreen({ route, navigation }) {
 
                 // Data is now already in the correct format from backend
                 setData(analysisData);
+
+                // Save last scan data
+                try {
+                    await AsyncStorage.setItem('lastScan', JSON.stringify({
+                        imageUri,
+                        data: analysisData,
+                        timestamp: new Date().toISOString(),
+                    }));
+                } catch (error) {
+                    console.error('Error saving last scan:', error);
+                }
 
                 // Check for allergies after getting the data
                 await loadUserAllergies(analysisData);
@@ -189,7 +223,7 @@ export default function ResultsScreen({ route, navigation }) {
         };
 
         fetchData();
-    }, [imageUri]);
+    }, [imageUri, preloadedData]);
 
     const loadUserAllergies = async (analysisData = data) => {
         try {
@@ -463,6 +497,7 @@ export default function ResultsScreen({ route, navigation }) {
                 data={selectedIngredient}
             />
 
+            <BottomBar navigation={navigation} />
         </View>
     );
 }
@@ -500,6 +535,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         padding: SPACING.m,
         paddingTop: 80,
+        paddingBottom: 100, // Space for bottom bar
     },
     // Score Section
     scoreSection: {

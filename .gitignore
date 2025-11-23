@@ -1,13 +1,33 @@
+# Dependencies
 node_modules
 env
+venv
 .env
-uploads
-.DS_Store
-.vscode
 
+# Expo
+.expo/
+*.jks
+*.keystore
+*.p12
+*.key
+
+# Backend
 backend/ocr/__pycache__/
 backend/ocr/*.pyc
-
 backend/scrape/__pycache__/
 backend/scrape/*.pyc
+backend/uploads
+backend/__pycache__
+backend/*.pyc
+backend/app.db
+backend/instance/
 
+# Cloudflare
+cloudflare-worker/node_modules
+cloudflare-worker/.wrangler/
+
+# System
+.DS_Store
+.vscode
+*.log
+uploads

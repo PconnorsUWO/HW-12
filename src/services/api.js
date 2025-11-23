@@ -1,12 +1,7 @@
 import { Platform } from 'react-native';
 
-// Option 1: Use local IP (recommended - no tunnel needed!)
-// Make sure your phone and computer are on the same WiFi network
-const API_URL = 'https://lowliest-bulah-winglike.ngrok-free.dev';
-
-// Option 3: Use ngrok (more stable than localtunnel)
-// Run: npx ngrok http 5001
-// const API_URL = 'https://YOUR-NGROK-URL.ngrok.io';
+import { AllergyService } from './allergies';
+import { API_URL } from '../config';
 
 
 export const uploadImage = async (imageUri) => {
@@ -25,8 +20,10 @@ export const uploadImage = async (imageUri) => {
     try {
         const response = await fetch(`${API_URL}/analyze`, {
             method: 'POST',
+            headers: {
+                'ngrok-skip-browser-warning': 'true'
+            },
             body: formData,
-            // Don't set Content-Type - browser sets it automatically with boundary
         });
 
         if (!response.ok) {
@@ -34,9 +31,36 @@ export const uploadImage = async (imageUri) => {
         }
 
         const data = await response.json();
-        return data;
+
+        // Check for user allergies
+        try {
+            const userAllergies = await AllergyService.getUserAllergies();
+            const dangerousIngredients = AllergyService.checkForAllergies(
+                data.analysis?.ingredients || [],
+                userAllergies
+            );
+
+            return {
+                ...data,
+                allergyWarning: {
+                    hasDangerousIngredients: dangerousIngredients.length > 0,
+                    dangerousIngredients
+                }
+            };
+        } catch (allergyError) {
+            console.warn('Allergy check failed:', allergyError);
+            return {
+                ...data,
+                allergyWarning: {
+                    hasDangerousIngredients: false,
+                    dangerousIngredients: []
+                }
+            };
+        }
     } catch (error) {
         console.error('API Upload Error:', error);
         throw error;
     }
 };
+
+export { API_URL };

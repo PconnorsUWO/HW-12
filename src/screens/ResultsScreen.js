@@ -1,11 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, Animated, Easing, Modal, ScrollView, TouchableWithoutFeedback, Linking } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, Animated, Easing, Modal, ScrollView, TouchableWithoutFeedback, Linking, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, AlertTriangle, XCircle, BookOpen, Activity, ChevronRight, List, ShieldAlert, Link as LinkIcon, FileText } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../constants/theme';
 import { MODAL_TYPES, SCORE_THRESHOLDS, CARD_TITLES, LABELS, ERROR_MESSAGES, LOADING_MESSAGES, EMPTY_STATES, UI_TEXT } from '../constants/types';
 import { uploadImage } from '../services/api';
+
+import { AllergyWarning } from '../components/AllergyWarning';
+import { AllergyService } from '../services/allergies';
+
 import IngredientPopup from '../components/IngredientPopup';
 import sampleIngredientData from '../data/sampleIngredient.json';
 
@@ -14,22 +19,22 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 // --- Info Card Component ---
 const InfoCard = ({ title, icon: Icon, color, onPress, delay = 0 }) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(20)).current;
+    const slideAnim = useRef(new Animated.Value(50)).current;
 
     useEffect(() => {
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
-                duration: 500,
+                duration: 600,
                 delay,
                 useNativeDriver: true,
             }),
-            Animated.timing(slideAnim, {
+            Animated.spring(slideAnim, {
                 toValue: 0,
-                duration: 500,
+                friction: 8,
+                tension: 40,
                 delay,
                 useNativeDriver: true,
-                easing: Easing.out(Easing.ease),
             }),
         ]).start();
     }, []);
@@ -42,11 +47,13 @@ const InfoCard = ({ title, icon: Icon, color, onPress, delay = 0 }) => {
     return (
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             <TouchableOpacity style={styles.infoCard} onPress={handlePress} activeOpacity={0.7}>
-                <View style={[styles.iconContainer, { backgroundColor: color }]}>
-                    <Icon size={24} color={COLORS.black} />
+                <View style={[styles.iconContainer, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                    <Icon size={24} color={color} />
                 </View>
                 <Text style={styles.cardMainTitle}>{title}</Text>
-                <ChevronRight size={20} color={COLORS.textSecondary} />
+                <View style={[styles.arrowContainer, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+                    <ChevronRight size={20} color={COLORS.textSecondary} />
+                </View>
             </TouchableOpacity>
         </Animated.View>
     );
@@ -67,7 +74,7 @@ const DetailModal = ({ visible, onClose, title, color, children, icon: Icon }) =
         } else {
             Animated.timing(slideAnim, {
                 toValue: SCREEN_HEIGHT,
-                duration: 200,
+                duration: 250,
                 useNativeDriver: true,
             }).start();
         }
@@ -82,18 +89,20 @@ const DetailModal = ({ visible, onClose, title, color, children, icon: Icon }) =
                     <View style={styles.modalBackdrop} />
                 </TouchableWithoutFeedback>
                 <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]}>
-                    <View style={[styles.modalHeader, { backgroundColor: color }]}>
+                    <View style={styles.modalHeader}>
                         <View style={styles.modalHeaderTop}>
-                            {Icon && <Icon size={24} color="#000" />}
+                            <View style={[styles.modalIcon, { backgroundColor: color }]}>
+                                {Icon && <Icon size={24} color={COLORS.black} />}
+                            </View>
                             <Text style={styles.modalTitle}>{title}</Text>
                             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                                <XCircle size={24} color="#000" />
+                                <XCircle size={28} color={COLORS.textSecondary} />
                             </TouchableOpacity>
                         </View>
                     </View>
-                    <ScrollView contentContainerStyle={styles.modalBody}>
+                    <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
                         {children}
-                        <View style={{ height: 50 }} />
+                        <View style={{ height: 100 }} />
                     </ScrollView>
                 </Animated.View>
             </View>
@@ -107,6 +116,10 @@ export default function ResultsScreen({ route, navigation }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const insets = useSafeAreaInsets();
+
+    // Allergy state
+    const [userAllergies, setUserAllergies] = useState([]);
+    const [dangerousIngredients, setDangerousIngredients] = useState([]);
 
     // Animation for loading bar
     const progress = useRef(new Animated.Value(0)).current;
@@ -158,6 +171,9 @@ export default function ResultsScreen({ route, navigation }) {
 
                 // Data is now already in the correct format from backend
                 setData(analysisData);
+
+                // Check for allergies after getting the data
+                await loadUserAllergies(analysisData);
             } catch (err) {
                 console.error(err);
                 setError(ERROR_MESSAGES.ANALYSIS_FAILED);
@@ -175,6 +191,24 @@ export default function ResultsScreen({ route, navigation }) {
         fetchData();
     }, [imageUri]);
 
+    const loadUserAllergies = async (analysisData = data) => {
+        try {
+            const allergies = await AllergyService.getUserAllergies();
+            setUserAllergies(allergies);
+
+            // Check for dangerous ingredients
+            if (analysisData?.ingredients) {
+                const dangerous = AllergyService.checkForAllergies(
+                    analysisData.ingredients,
+                    allergies
+                );
+                setDangerousIngredients(dangerous);
+            }
+        } catch (error) {
+            console.error('Failed to load allergies:', error);
+        }
+    };
+
     const getScoreColor = (score) => {
         if (score >= SCORE_THRESHOLDS.HIGH) return COLORS.success;
         if (score >= SCORE_THRESHOLDS.MEDIUM) return COLORS.warning;
@@ -190,13 +224,17 @@ export default function ResultsScreen({ route, navigation }) {
 
         return (
             <View style={styles.container}>
-                <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={20} />
+                <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={30} />
+                <View style={styles.overlayDark} />
+
                 <View style={[styles.header, { paddingTop: insets.top + SPACING.s }]}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                         <ArrowLeft size={24} color={COLORS.white} />
                     </TouchableOpacity>
                 </View>
+
                 <View style={styles.loadingContainer}>
+                    <Activity size={48} color={COLORS.primary} style={{ marginBottom: SPACING.l }} />
                     <Text style={styles.loadingText}>{LOADING_MESSAGES.ANALYZING}</Text>
                     <Text style={styles.loadingSubText}>{LOADING_MESSAGES.IDENTIFYING}</Text>
                     <View style={styles.progressBarContainer}>
@@ -211,13 +249,17 @@ export default function ResultsScreen({ route, navigation }) {
     if (error || !data) {
         return (
             <View style={styles.container}>
-                <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={20} />
+                <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={30} />
+                <View style={styles.overlayDark} />
+
                 <View style={[styles.header, { paddingTop: insets.top + SPACING.s }]}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                         <ArrowLeft size={24} color={COLORS.white} />
                     </TouchableOpacity>
                 </View>
+
                 <View style={styles.loadingContainer}>
+                    <AlertTriangle size={48} color={COLORS.danger} style={{ marginBottom: SPACING.l }} />
                     <Text style={styles.loadingText}>{UI_TEXT.ERROR}</Text>
                     <Text style={styles.loadingSubText}>{error || ERROR_MESSAGES.NO_DATA}</Text>
                 </View>
@@ -229,7 +271,8 @@ export default function ResultsScreen({ route, navigation }) {
 
     return (
         <View style={styles.container}>
-            <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={10} />
+            <Image source={{ uri: imageUri }} style={styles.backgroundImage} blurRadius={20} />
+            <View style={styles.overlayDark} />
 
             <View style={[styles.header, { paddingTop: insets.top + SPACING.s }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -237,17 +280,24 @@ export default function ResultsScreen({ route, navigation }) {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <View style={{ height: 60 }} />
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <View style={{ height: 40 }} />
 
-                {/* Score Section (Restored) */}
+                {/* Score Section with Allergy Warning */}
                 <View style={styles.scoreSection}>
-                    <View style={[styles.scoreCircle, { borderColor: scoreColor }]}>
+                    <View style={[styles.scoreCircle, { borderColor: scoreColor, shadowColor: scoreColor }]}>
                         <Text style={[styles.scoreValue, { color: scoreColor }]}>{data.overallWeightedHealthScore}</Text>
+                        <Text style={styles.scoreTotal}>/100</Text>
                     </View>
+
                     <View style={styles.scoreTextContainer}>
                         <Text style={styles.scoreLabel}>{CARD_TITLES.HEALTH_SCORE}</Text>
                     </View>
+
+                    <AllergyWarning
+                        dangerousIngredients={dangerousIngredients}
+                        visible={dangerousIngredients.length > 0}
+                    />
                 </View>
 
                 {/* Interactive Cards */}
@@ -294,10 +344,12 @@ export default function ResultsScreen({ route, navigation }) {
                         title={CARD_TITLES.SCHOLARLY_SOURCES}
                         icon={BookOpen}
                         color={COLORS.secondary}
-                        delay={500}
+                        delay={400}
                         onPress={() => setActiveModal(MODAL_TYPES.SOURCES)}
                     />
                 </View>
+
+                <View style={{ height: 40 }} />
             </ScrollView>
 
             {/* --- Modals --- */}
@@ -322,6 +374,12 @@ export default function ResultsScreen({ route, navigation }) {
                 icon={List}
             >
                 {data.ingredients && data.ingredients.map((item, index) => (
+
+                    <View key={index} style={styles.listItem}>
+                        <View style={styles.listItemHeader}>
+                            <View style={styles.bullet} />
+                            <Text style={styles.listItemTitle}>{item.name}</Text>
+
                     <TouchableOpacity
                         key={index}
                         style={styles.listItem}
@@ -330,6 +388,7 @@ export default function ResultsScreen({ route, navigation }) {
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Text style={styles.listItemTitle}>{item.name}</Text>
                             <ChevronRight size={16} color={COLORS.textSecondary} />
+
                         </View>
                         <Text style={styles.listItemText}>{item.function}</Text>
                     </TouchableOpacity>
@@ -349,9 +408,13 @@ export default function ResultsScreen({ route, navigation }) {
                 ) : (
                     data.harmfulComponents.map((item, index) => (
                         <View key={index} style={styles.card}>
-                            <Text style={styles.cardTitle}>{item.name}</Text>
+                            <View style={styles.cardHeader}>
+                                <Text style={styles.cardTitle}>{item.name}</Text>
+                                <View style={[styles.severityBadge, { backgroundColor: item.severity === 'High' ? COLORS.danger : COLORS.warning }]}>
+                                    <Text style={styles.severityText}>{item.severity}</Text>
+                                </View>
+                            </View>
                             <Text style={styles.cardBody}>{item.concern}</Text>
-                            <Text style={styles.cardLabel}>{LABELS.SEVERITY} {item.severity}</Text>
                         </View>
                     ))
                 )}
@@ -377,28 +440,6 @@ export default function ResultsScreen({ route, navigation }) {
                 )}
             </DetailModal>
 
-            {/* Combos Modal */}
-            <DetailModal
-                visible={activeModal === MODAL_TYPES.COMBOS}
-                onClose={() => setActiveModal(null)}
-                title={CARD_TITLES.HARMFUL_COMBINATIONS}
-                color={COLORS.danger}
-                icon={XCircle}
-            >
-                {(!data.harmfulCombinations || data.harmfulCombinations.length === 0) ? (
-                    <Text style={styles.modalBodyText}>{EMPTY_STATES.NO_COMBINATIONS}</Text>
-                ) : (
-                    data.harmfulCombinations.map((combo, index) => (
-                        <View key={index} style={styles.card}>
-                            <Text style={styles.cardTitle}>Combo #{index + 1}</Text>
-                            <Text style={styles.cardBody}>{combo.combo}</Text>
-                            <Text style={styles.cardLabel}>{LABELS.RISK}</Text>
-                            <Text style={styles.cardRisk}>{combo.risk}</Text>
-                        </View>
-                    ))
-                )}
-            </DetailModal>
-
             {/* Sources Modal */}
             <DetailModal
                 visible={activeModal === MODAL_TYPES.SOURCES}
@@ -412,11 +453,11 @@ export default function ResultsScreen({ route, navigation }) {
                 ) : (
                     data.scholarlySources.map((source, index) => (
                         <TouchableOpacity key={index} style={styles.card} onPress={() => source.url && Linking.openURL(source.url)}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                                 <LinkIcon size={16} color={COLORS.primary} />
                                 <Text style={[styles.cardTitle, { color: COLORS.primary, marginBottom: 0 }]}>{LABELS.SOURCE} {index + 1}</Text>
                             </View>
-                            <Text style={[styles.cardBody, { marginTop: 8 }]}>{source.citation}</Text>
+                            <Text style={styles.cardBody}>{source.citation}</Text>
                         </TouchableOpacity>
                     ))
                 )}
@@ -440,7 +481,11 @@ const styles = StyleSheet.create({
     },
     backgroundImage: {
         ...StyleSheet.absoluteFillObject,
-        opacity: 0.3,
+        opacity: 0.4,
+    },
+    overlayDark: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.7)',
     },
     header: {
         position: 'absolute',
@@ -450,12 +495,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: SPACING.m,
     },
     backButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         backgroundColor: COLORS.overlayMedium,
         alignItems: 'center',
         justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.borderLight,
     },
     scrollContent: {
         padding: SPACING.m,
@@ -464,35 +511,42 @@ const styles = StyleSheet.create({
     // Score Section
     scoreSection: {
         alignItems: 'center',
-        marginBottom: SPACING.l,
+        marginBottom: SPACING.xl,
     },
     scoreCircle: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        borderWidth: 6,
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        borderWidth: 8,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: SPACING.s,
         backgroundColor: COLORS.overlayMedium,
+        marginBottom: SPACING.s,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: 20,
+        elevation: 10,
     },
     scoreValue: {
-        fontSize: 36,
+        fontSize: 42,
         fontWeight: '800',
+    },
+    scoreTotal: {
+        fontSize: 14,
+        color: COLORS.textSecondary,
+        fontWeight: '600',
+        marginTop: -4,
     },
     scoreTextContainer: {
         alignItems: 'center',
+        marginBottom: SPACING.m,
     },
     scoreLabel: {
         color: COLORS.textSecondary,
-        fontSize: 12,
+        fontSize: 14,
         textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginBottom: 4,
-    },
-    assessment: {
-        fontSize: 24,
-        fontWeight: '800',
+        letterSpacing: 2,
+        fontWeight: '600',
     },
     // Cards Layout
     cardsContainer: {
@@ -502,24 +556,32 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: COLORS.cardBackground,
-        borderRadius: 20,
+        borderRadius: 24,
         padding: SPACING.m,
         borderWidth: 1,
         borderColor: COLORS.borderLight,
     },
     iconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: SPACING.m,
     },
+    arrowContainer: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     cardMainTitle: {
         flex: 1,
         color: COLORS.white,
-        fontSize: 18,
+        fontSize: 17,
         fontWeight: '600',
+        letterSpacing: 0.5,
     },
     // Loading Styles
     loadingContainer: {
@@ -540,21 +602,17 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.xl,
     },
     progressBarContainer: {
-        width: '80%',
-        height: 6,
+        width: '70%',
+        height: 4,
         backgroundColor: COLORS.borderLight,
-        borderRadius: 3,
+        borderRadius: 2,
         overflow: 'hidden',
         marginBottom: SPACING.s,
     },
     progressBarFill: {
         height: '100%',
         backgroundColor: COLORS.primary,
-        borderRadius: 3,
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: 10,
+        borderRadius: 2,
     },
     loadingPercent: {
         color: COLORS.primary,
@@ -570,55 +628,75 @@ const styles = StyleSheet.create({
     },
     modalBackdrop: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: COLORS.overlayDark,
+        backgroundColor: 'rgba(0,0,0,0.85)',
     },
     modalContent: {
-        backgroundColor: COLORS.surface,
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-        height: '80%',
+        backgroundColor: '#121212',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        height: '85%',
         overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: COLORS.borderLight,
     },
     modalHeader: {
         padding: SPACING.m,
         paddingTop: SPACING.l,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.borderLight,
+        backgroundColor: '#1a1a1a',
     },
     modalHeaderTop: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+    },
+    modalIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: SPACING.m,
     },
     modalTitle: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: COLORS.black,
+        fontSize: 20,
+        fontWeight: '700',
+        color: COLORS.white,
         flex: 1,
-        marginLeft: SPACING.s,
     },
     closeButton: {
         padding: 4,
     },
     modalBody: {
-        padding: SPACING.m,
+        padding: SPACING.l,
     },
     modalBodyText: {
         fontSize: 16,
         color: COLORS.textSecondary,
-        lineHeight: 24,
-        marginBottom: SPACING.m,
+        lineHeight: 26,
     },
     listItem: {
-        marginBottom: SPACING.m,
-        paddingLeft: SPACING.s,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.1)',
-        paddingBottom: SPACING.s,
+        marginBottom: SPACING.l,
+        backgroundColor: COLORS.cardBackgroundLight,
+        padding: SPACING.m,
+        borderRadius: 16,
+    },
+    listItemHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    bullet: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: COLORS.primary,
+        marginRight: 10,
     },
     listItemTitle: {
-        fontSize: 16,
+        fontSize: 17,
         fontWeight: '700',
-        color: COLORS.text,
-        marginBottom: 4,
+        color: COLORS.white,
     },
     listItemText: {
         fontSize: 15,
@@ -630,49 +708,34 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: SPACING.m,
         marginBottom: SPACING.m,
+        borderWidth: 1,
+        borderColor: COLORS.borderLight,
     },
-    cardTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: COLORS.text,
-        marginBottom: 4,
-    },
-    cardBody: {
-        fontSize: 14,
-        color: COLORS.text,
-        fontStyle: 'italic',
-        marginBottom: 8,
-    },
-    cardLabel: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: COLORS.textSecondary,
-        textTransform: 'uppercase',
-        marginTop: 8,
-        marginBottom: 4,
-    },
-    cardRisk: {
-        fontSize: 14,
-        color: COLORS.danger,
-        marginBottom: 2,
-    },
-    // Analysis Modal Specifics
-    scoreBadgeContainer: {
+    cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: SPACING.m,
-        paddingBottom: SPACING.s,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.1)',
+        marginBottom: 8,
     },
-    scoreBadgeText: {
-        fontSize: 20,
-        fontWeight: '800',
+    cardTitle: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: COLORS.white,
     },
-    assessmentText: {
-        fontSize: 18,
+    severityBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    severityText: {
+        color: COLORS.white,
+        fontSize: 12,
         fontWeight: '700',
         textTransform: 'uppercase',
+    },
+    cardBody: {
+        fontSize: 15,
+        color: COLORS.textSecondary,
+        lineHeight: 22,
     },
 });

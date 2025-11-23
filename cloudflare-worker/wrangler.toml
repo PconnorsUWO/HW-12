@@ -1,0 +1,8 @@
+name = "hw12-db-worker"
+main = "worker.js"
+compatibility_date = "2024-11-22"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hw12-database"
+database_id = "282cd13d-9212-48c1-8016-434f73366235"  # Replace after creating D1 database

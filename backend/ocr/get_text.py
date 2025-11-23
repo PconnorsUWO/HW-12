@@ -14,7 +14,9 @@ GOOGLE_API_KEY = os.getenv("VISION_API_KEY")
 
 DATA_DIR = ROOT_DIR / "backend" / "data"
 
-def extract_text(image_path: str) -> str:
+from typing import Dict, Any
+
+def extract_text(image_path: str) -> Dict[str, Any]:
     image_path = Path(image_path)
 
     if not image_path.exists():
@@ -68,9 +70,10 @@ def extract_text(image_path: str) -> str:
     result = response.json()
 
     try:
-        return result["responses"][0]["textAnnotations"][0]["description"]
+        # Return the full first response object (contains textAnnotations, fullTextAnnotation, etc.)
+        return result["responses"][0]
     except Exception:
-        return ""
+        return {}
 
 
 if __name__ == "__main__":

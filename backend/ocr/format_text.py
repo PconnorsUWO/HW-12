@@ -23,8 +23,7 @@ Do not include any markdown formatting (like ```json ... ```) in the response, j
 **HEALTH SCORE CALCULATION (REPEATABLE RUBRIC):**
 Start at 100. Deduct points strictly as follows (min 0, max 100):
 Safety Risks: -25 (Serious/Banned), -10 (Moderate).
-Dosage: -5 (>100 limit), -10 (>150%), -20 (>200%). Caffeine >400mg: Extra -15.
-Novelty: -3 (Limited data), -7 (Very novel/Unknown).
+Dosage: -5 (>100 limit), -10 (>100%), -20 (>120%). Caffeine >200mg: Extra -15.
 Formulation: -10 (Proprietary blends with stimulants), -10 (Stacking stimulants), -3 (Excessive additives).
 Interactions: -10 per dangerous combo.
 Uncertainty: -5 to -10 if data is scarce.
@@ -39,7 +38,7 @@ Uncertainty: -5 to -10 if data is scarce.
 -   **Harmful Components**: Risks, dosage concerns, purity.
 -   **Side Effects**: Severity and frequency.
 -   **Combinations**: Dangerous interactions.
--   **Sources**: Scholarly references. MUST be direct URLs to specific articles or ingredient pages (e.g., `https://examine.com/supplements/caffeine/`), NOT generic homepages.
+-   **Sources**: Scholarly references. MUST be direct URLs to specific articles or pages, NOT generic homepages.
 -   **Score**: Calculated based on the rubric above.
 """
 

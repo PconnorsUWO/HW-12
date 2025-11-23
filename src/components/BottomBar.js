@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function BottomBar({ navigation }) {
     const insets = useSafeAreaInsets();
-    
+
     // Get current route name from navigation state
     const currentRoute = useNavigationState(state => {
         if (!state) return 'Home';
@@ -25,13 +25,13 @@ export default function BottomBar({ navigation }) {
     const handleLastScanPress = async () => {
         try {
             const lastScanData = await AsyncStorage.getItem('lastScan');
-            
+
             if (lastScanData) {
                 const parsed = JSON.parse(lastScanData);
                 // Navigate to Results with the saved data
-                navigation.navigate('Results', { 
-                    imageUri: parsed.imageUri, 
-                    data: parsed.data 
+                navigation.navigate('Results', {
+                    imageUri: parsed.imageUri,
+                    data: parsed.data
                 });
             } else {
                 // If no last scan, show alert and stay on current screen
@@ -48,9 +48,9 @@ export default function BottomBar({ navigation }) {
     };
 
     const handleIngredientsDirectoryPress = () => {
-        // Navigate to Ingredients Directory screen
-        // For now, we'll create a simple navigation - you can enhance this later
-        navigation.navigate('IngredientsDirectory');
+        if (currentRoute !== 'IngredientsDirectory') {
+            navigation.navigate('IngredientsDirectory');
+        }
     };
 
     return (
@@ -62,9 +62,9 @@ export default function BottomBar({ navigation }) {
                     onPress={handleHomePress}
                     activeOpacity={0.7}
                 >
-                    <Home 
-                        size={24} 
-                        color={currentRoute === 'Home' ? COLORS.primary : COLORS.textSecondary} 
+                    <Home
+                        size={24}
+                        color={currentRoute === 'Home' ? COLORS.primary : COLORS.textSecondary}
                     />
                     <Text style={[
                         styles.buttonLabel,
@@ -76,15 +76,18 @@ export default function BottomBar({ navigation }) {
 
                 {/* Last Scan Button - Middle */}
                 <TouchableOpacity
-                    style={styles.button}
+                    style={[styles.button, currentRoute === 'Results' && styles.buttonActive]}
                     onPress={handleLastScanPress}
                     activeOpacity={0.7}
                 >
-                    <History 
-                        size={24} 
-                        color={COLORS.textSecondary} 
+                    <History
+                        size={24}
+                        color={currentRoute === 'Results' ? COLORS.primary : COLORS.textSecondary}
                     />
-                    <Text style={styles.buttonLabel}>
+                    <Text style={[
+                        styles.buttonLabel,
+                        currentRoute === 'Results' && styles.buttonLabelActive
+                    ]}>
                         Last Scan
                     </Text>
                 </TouchableOpacity>
@@ -95,9 +98,9 @@ export default function BottomBar({ navigation }) {
                     onPress={handleIngredientsDirectoryPress}
                     activeOpacity={0.7}
                 >
-                    <BookOpen 
-                        size={24} 
-                        color={currentRoute === 'IngredientsDirectory' ? COLORS.primary : COLORS.textSecondary} 
+                    <BookOpen
+                        size={24}
+                        color={currentRoute === 'IngredientsDirectory' ? COLORS.primary : COLORS.textSecondary}
                     />
                     <Text style={[
                         styles.buttonLabel,

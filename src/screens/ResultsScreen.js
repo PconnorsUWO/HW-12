@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, Animated, Easing, Modal, ScrollView, TouchableWithoutFeedback, Linking, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import { ArrowLeft, AlertTriangle, XCircle, BookOpen, Activity, ChevronRight, List, ShieldAlert, Link as LinkIcon, FileText } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../constants/theme';
-import { MODAL_TYPES, SCORE_THRESHOLDS, CARD_TITLES, LABELS, ERROR_MESSAGES, LOADING_MESSAGES, EMPTY_STATES, UI_TEXT } from '../constants/types';
+import { MODAL_TYPES, SCORE_THRESHOLDS, CARD_TITLES, LABELS, ERROR_MESSAGES, LOADING_MESSAGES, ROLLING_LOADING_MESSAGES, EMPTY_STATES, UI_TEXT } from '../constants/types';
 import { uploadImage } from '../services/api';
 
 import { AllergyWarning } from '../components/AllergyWarning';
@@ -19,27 +20,33 @@ import ingredientsData from './ingredients/data.json';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // --- Info Card Component ---
-const InfoCard = ({ title, icon: Icon, color, onPress, delay = 0 }) => {
+const InfoCard = ({ title, icon: Icon, color, onPress, delay = 0, trigger = true }) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(50)).current;
 
     useEffect(() => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 600,
-                delay,
-                useNativeDriver: true,
-            }),
-            Animated.spring(slideAnim, {
-                toValue: 0,
-                friction: 8,
-                tension: 40,
-                delay,
-                useNativeDriver: true,
-            }),
-        ]).start();
-    }, []);
+        if (trigger) {
+            // Reset values
+            fadeAnim.setValue(0);
+            slideAnim.setValue(50);
+
+            Animated.parallel([
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 600,
+                    delay,
+                    useNativeDriver: true,
+                }),
+                Animated.spring(slideAnim, {
+                    toValue: 0,
+                    friction: 8,
+                    tension: 40,
+                    delay,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        }
+    }, [trigger, delay]);
 
     const handlePress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -64,9 +71,11 @@ const InfoCard = ({ title, icon: Icon, color, onPress, delay = 0 }) => {
 // --- Detail Modal Component ---
 const DetailModal = ({ visible, onClose, title, color, children, icon: Icon }) => {
     const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+    const [showModal, setShowModal] = useState(visible);
 
     useEffect(() => {
         if (visible) {
+            setShowModal(true);
             Animated.spring(slideAnim, {
                 toValue: 0,
                 friction: 8,
@@ -74,18 +83,16 @@ const DetailModal = ({ visible, onClose, title, color, children, icon: Icon }) =
                 useNativeDriver: true,
             }).start();
         } else {
-            Animated.timing(slideAnim, {
-                toValue: SCREEN_HEIGHT,
-                duration: 250,
-                useNativeDriver: true,
-            }).start();
+            // Instant close
+            setShowModal(false);
+            slideAnim.setValue(SCREEN_HEIGHT);
         }
     }, [visible]);
 
-    if (!visible) return null;
+    if (!showModal) return null;
 
     return (
-        <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
+        <Modal transparent visible={showModal} animationType="none" onRequestClose={onClose}>
             <View style={styles.modalOverlay}>
                 <TouchableWithoutFeedback onPress={onClose}>
                     <View style={styles.modalBackdrop} />
@@ -117,7 +124,9 @@ export default function ResultsScreen({ route, navigation }) {
     const [data, setData] = useState(preloadedData || null);
     const [loading, setLoading] = useState(!preloadedData);
     const [error, setError] = useState(null);
+    const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
     const insets = useSafeAreaInsets();
+    const isFocused = useIsFocused();
 
     // Allergy state
     const [userAllergies, setUserAllergies] = useState([]);
@@ -138,7 +147,7 @@ export default function ResultsScreen({ route, navigation }) {
         setActiveModal(null);
 
         // Search for the ingredient in the ingredients data by name (case-insensitive)
-        const foundIngredient = ingredientsData.find(ingredient => 
+        const foundIngredient = ingredientsData.find(ingredient =>
             ingredient.name.toLowerCase() === ingredientName.toLowerCase()
         );
 
@@ -180,12 +189,18 @@ export default function ResultsScreen({ route, navigation }) {
 
         // Otherwise, fetch data from API
         // Start Loading Animation
+        // Start Loading Animation - smoother and continuous
         Animated.timing(progress, {
-            toValue: 0.7,
-            duration: 2000,
+            toValue: 0.95,
+            duration: 15000, // 15 seconds to get to 95%
             useNativeDriver: false,
             easing: Easing.out(Easing.ease),
         }).start();
+
+        // Rolling text interval
+        const messageInterval = setInterval(() => {
+            setCurrentMessageIndex(prev => (prev + 1) % ROLLING_LOADING_MESSAGES.length);
+        }, 4000);
 
         const fetchData = async () => {
             try {
@@ -212,6 +227,7 @@ export default function ResultsScreen({ route, navigation }) {
                 console.error(err);
                 setError(ERROR_MESSAGES.ANALYSIS_FAILED);
             } finally {
+                clearInterval(messageInterval);
                 Animated.timing(progress, {
                     toValue: 1,
                     duration: 500,
@@ -249,6 +265,13 @@ export default function ResultsScreen({ route, navigation }) {
         return COLORS.danger;
     };
 
+    const getSeverityColor = (severity) => {
+        const severityLower = severity.toLowerCase();
+        if (severityLower === 'low') return COLORS.success;
+        if (severityLower === 'moderate') return COLORS.warning;
+        return COLORS.danger; // High, Very High, or any other severity
+    };
+
     // Loading View
     if (loading) {
         const width = progress.interpolate({
@@ -269,8 +292,12 @@ export default function ResultsScreen({ route, navigation }) {
 
                 <View style={styles.loadingContainer}>
                     <Activity size={48} color={COLORS.primary} style={{ marginBottom: SPACING.l }} />
-                    <Text style={styles.loadingText}>{LOADING_MESSAGES.ANALYZING}</Text>
-                    <Text style={styles.loadingSubText}>{LOADING_MESSAGES.IDENTIFYING}</Text>
+                    <Text style={styles.loadingText}>
+                        {ROLLING_LOADING_MESSAGES[currentMessageIndex].title}
+                    </Text>
+                    <Text style={styles.loadingSubText}>
+                        {ROLLING_LOADING_MESSAGES[currentMessageIndex].subtitle}
+                    </Text>
                     <View style={styles.progressBarContainer}>
                         <Animated.View style={[styles.progressBarFill, { width }]} />
                     </View>
@@ -343,6 +370,7 @@ export default function ResultsScreen({ route, navigation }) {
                         icon={FileText}
                         color={scoreColor}
                         delay={0}
+                        trigger={isFocused}
                         onPress={() => setActiveModal(MODAL_TYPES.ANALYSIS)}
                     />
 
@@ -352,6 +380,7 @@ export default function ResultsScreen({ route, navigation }) {
                         icon={List}
                         color={COLORS.primary}
                         delay={100}
+                        trigger={isFocused}
                         onPress={() => setActiveModal(MODAL_TYPES.INGREDIENTS)}
                     />
 
@@ -361,6 +390,7 @@ export default function ResultsScreen({ route, navigation }) {
                         icon={ShieldAlert}
                         color={COLORS.danger}
                         delay={200}
+                        trigger={isFocused}
                         onPress={() => setActiveModal(MODAL_TYPES.HARMFUL)}
                     />
 
@@ -370,6 +400,7 @@ export default function ResultsScreen({ route, navigation }) {
                         icon={AlertTriangle}
                         color={COLORS.warning}
                         delay={300}
+                        trigger={isFocused}
                         onPress={() => setActiveModal(MODAL_TYPES.EFFECTS)}
                     />
 
@@ -379,6 +410,7 @@ export default function ResultsScreen({ route, navigation }) {
                         icon={BookOpen}
                         color={COLORS.secondary}
                         delay={400}
+                        trigger={isFocused}
                         onPress={() => setActiveModal(MODAL_TYPES.SOURCES)}
                     />
                 </View>
@@ -437,7 +469,7 @@ export default function ResultsScreen({ route, navigation }) {
                         <View key={index} style={styles.card}>
                             <View style={styles.cardHeader}>
                                 <Text style={styles.cardTitle}>{item.name}</Text>
-                                <View style={[styles.severityBadge, { backgroundColor: item.severity === 'High' ? COLORS.danger : COLORS.warning }]}>
+                                <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(item.severity) }]}>
                                     <Text style={styles.severityText}>{item.severity}</Text>
                                 </View>
                             </View>
@@ -743,18 +775,21 @@ const styles = StyleSheet.create({
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start', // Changed from center to flex-start for multi-line titles
         marginBottom: 8,
     },
     cardTitle: {
         fontSize: 17,
         fontWeight: '700',
         color: COLORS.white,
+        flex: 1, // Allow title to take available space
+        marginRight: 8, // Add spacing between title and badge
     },
     severityBadge: {
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 8,
+        flexShrink: 0, // Prevent badge from shrinking
     },
     severityText: {
         color: COLORS.white,

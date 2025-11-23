@@ -154,7 +154,7 @@ export default function IngredientPopup({ visible, onClose, data }) {
                 <Animated.View style={[styles.container, { transform: [{ translateY: slideAnim }] }]}>
                     {/* Header */}
                     <View style={styles.header}>
-                        <View>
+                        <View style={{ flex: 1, marginRight: SPACING.s }}>
                             <Text style={styles.title}>{data.name}</Text>
                             <Text style={styles.headerSubtitle}>Ingredient Analysis</Text>
                         </View>
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
         borderBottomColor: 'rgba(255,255,255,0.1)',
     },
     title: {
-        fontSize: 28,
+        fontSize: 24,
         fontWeight: '800',
         color: COLORS.text,
     },
@@ -223,6 +223,7 @@ const styles = StyleSheet.create({
         color: COLORS.textSecondary,
         textTransform: 'uppercase',
         letterSpacing: 1,
+        marginTop: 4,
     },
     closeButton: {
         padding: 8,

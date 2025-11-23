@@ -67,6 +67,14 @@ export const LOADING_MESSAGES = {
     SCANNING: 'Scanning...',
 };
 
+// Rolling loading messages
+export const ROLLING_LOADING_MESSAGES = [
+    { title: 'Analyzing Ingredients...', subtitle: 'Identifying additives & health risks' },
+    { title: 'Checking Database...', subtitle: 'Comparing against known allergens' },
+    { title: 'Evaluating Safety...', subtitle: 'Assessing potential side effects' },
+    { title: 'Finalizing Report...', subtitle: 'Generating health score & summary' },
+];
+
 // Empty state messages
 export const EMPTY_STATES = {
     NO_HARMFUL_COMPONENTS: 'No major harmful components detected.',

@@ -39,7 +39,7 @@ Uncertainty: -5 to -10 if data is scarce.
 -   **Harmful Components**: Risks, dosage concerns, purity.
 -   **Side Effects**: Severity and frequency.
 -   **Combinations**: Dangerous interactions.
--   **Sources**: Scholarly references (based on ingredients use reputable sources i.e. examine.com).
+-   **Sources**: Scholarly references. MUST be direct URLs to specific articles or ingredient pages (e.g., `https://examine.com/supplements/caffeine/`), NOT generic homepages.
 -   **Score**: Calculated based on the rubric above.
 """
 

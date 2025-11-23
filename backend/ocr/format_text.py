@@ -19,7 +19,7 @@ Given noisy OCR text from a food or beverage package label, first identify the I
 Analyze the product based on the extracted ingredients using authoritative sources (e.g., Examine.com, PubMed).
 You must provide a comprehensive breakdown with the following 6 sections:
 
-1. **Overall Analysis**: A balanced, evidence-based assessment of safety, efficacy, and quality. (Text block)
+1. **Overall Analysis**: A balanced, evidence-based assessment of safety, efficacy, and quality. Should have nice clear headings and summarize the other points or a quick read. 
 2. **Ingredients List**: A clean list of ingredients with their primary functions.
 3. **Potentially Harmful Components**: Identify risks (dosage, purity, population warnings).
 4. **Potential Side Effects**: Documented side effects organized by severity/frequency.

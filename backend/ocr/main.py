@@ -19,19 +19,39 @@ def run_pipeline(image_path: str):
     """
 
     print("[1] Running OCR...")
-    ocr_text = extract_text(image_path)
+    ocr_data = extract_text(image_path)
 
-    if not ocr_text.strip():
+    if not ocr_data:
         return {
             "ingredients": [],
-            "error": "OCR returned no text."
+            "error": "OCR returned no data."
         }
 
+    # --- OPTIMIZATION: Prune unnecessary data ---
+    # The Vision API returns massive JSON with coordinates for every character.
+    # Gemini only needs the text structure. This reduces token count significantly.
+    def prune_ocr_json(data):
+        if isinstance(data, dict):
+            # Remove verbose fields
+            return {
+                k: prune_ocr_json(v) 
+                for k, v in data.items() 
+                if k not in ["boundingPoly", "confidence", "property"]
+            }
+        elif isinstance(data, list):
+            return [prune_ocr_json(i) for i in data]
+        else:
+            return data
+
+    pruned_data = prune_ocr_json(ocr_data)
+    ocr_json_str = json.dumps(pruned_data)
+    # --------------------------------------------
+
     print("[2] Extracting ingredients using Gemini...")
-    result = extract_ingredients(ocr_text)
+    result = extract_ingredients(ocr_json_str)
 
     return {
-        "ocr_raw_text": ocr_text,
+        "ocr_raw_text": ocr_data.get("fullTextAnnotation", {}).get("text", ""), # Extract readable text for debug
         "analysis": result  # Return the full analysis object
     }
 

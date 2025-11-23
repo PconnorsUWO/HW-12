@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+
 import { AllergyService } from './allergies';
 import { API_URL } from '../config';
 

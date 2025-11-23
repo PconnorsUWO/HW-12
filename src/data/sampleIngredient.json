@@ -1,0 +1,57 @@
+{
+    "id": "caffeine",
+    "name": "Caffeine",
+    "summary": "Caffeine is a stimulatory anti-sleep compound extracted from coffee beans. It is the most widely consumed psychoactive substance in the world. It is known for its ability to promote wakefulness and enhance focus, but it also has effects on physical performance and metabolism.",
+    "tags": [
+        "Stimulant",
+        "Nootropic",
+        "Performance Enhancer"
+    ],
+    "evidenceMap": [
+        {
+            "effect": "Alertness",
+            "grade": "A",
+            "magnitude": "Strong",
+            "consistency": "Consistent",
+            "details": "Reliably increases wakefulness and reduces the perception of fatigue, especially in sleep-deprived states."
+        },
+        {
+            "effect": "Physical Performance",
+            "grade": "A",
+            "magnitude": "Moderate",
+            "consistency": "Consistent",
+            "details": "Improves power output and endurance. Effective for both aerobic and anaerobic exercise."
+        },
+        {
+            "effect": "Blood Pressure",
+            "grade": "B",
+            "magnitude": "Minor",
+            "consistency": "Consistent",
+            "details": "Can cause a temporary, minor spike in blood pressure, especially in those not tolerant to caffeine."
+        },
+        {
+            "effect": "Sleep Quality",
+            "grade": "B",
+            "magnitude": "Negative",
+            "consistency": "Consistent",
+            "details": "Consumption later in the day can significantly increase sleep latency and reduce sleep quality."
+        }
+    ],
+    "dosage": {
+        "instruction": "To supplement for physical performance, take 3–6 mg/kg of body weight. For general wakefulness, 100–200 mg is standard.",
+        "timing": "Take 30–60 minutes before the desired effect (e.g., workout or study session). Avoid within 6 hours of sleep.",
+        "notes": "Tolerance builds up quickly. Cycling off for a few days can restore sensitivity."
+    },
+    "citations": [
+        {
+            "id": 1,
+            "text": "Grgic J, et al. Wakefulness-promoting effects of caffeine. Nutrients. (2020)",
+            "link": "https://pubmed.ncbi.nlm.nih.gov/example1"
+        },
+        {
+            "id": 2,
+            "text": "Guest NS, et al. International society of sports nutrition position stand: caffeine and exercise performance. J Int Soc Sports Nutr. (2021)",
+            "link": "https://pubmed.ncbi.nlm.nih.gov/example2"
+        }
+    ]
+}
